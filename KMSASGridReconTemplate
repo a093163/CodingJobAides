@@ -1,0 +1,112 @@
+OPTIONS MPRINT MLOGIC SYMBOLGEN NOLABEL FULLSTIMER VALIDVARNAME=V7;
+
+/****************************************************************/
+/* SET MACRO VALUE TO METRIC NAME USING CAMEL CASE              */
+/****************************************************************/
+
+%LET MetricAlias = ;
+
+/****************************************************************/
+/* Extract required components from SMED code */
+/****************************************************************/
+
+/****************************************************************/
+/* ON THE SERVER MSS-P1-CLAIMSKEYMETRICS-01 RIGHT CLICK ON EACH */ 
+/* TABLE, SELECT THE TOP 1000 ROWS, AND DO AS EACH TABLE        */
+/* INSTRUCTS BELOW....                                          */
+/* - [ClaimsBIMetrics].[dbo].[DimMetric]                        */
+/*   Do a fuzzy search in teh MetricName field for the metric   */
+/*   you are reconciling and document the corresponding         */
+/*   DimMetricKey value.                                        */
+/*                                                              */
+/* - [ClaimsBIMetrics].[etl].[MetricMartJobConfig]              */
+/*   Find the corresponding DimMetricKey where the              */
+/*   MetricMartInd = 1, copy the value the in ExtractQuery      */
+/*   column and post it between the elipses in the passthrough  */
+/*   connection below.                                          */
+/****************************************************************/
+
+%LET PROD = "DSN=SQLServer; SERVER=MSS-P1-ClaimsKeyMetrics-01; DATABASE=ClaimsBIMetrics";
+LIBNAME PROD &SQLEng NOPROMPT=&PROD &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+PROC SQL NOPRINT;
+	CONNECT TO &SQLEng (NOPROMPT=&PROD &BulkParms READ_ISOLATION_LEVEL=RU);
+	CREATE TABLE KMResultDtls AS SELECT * FROM CONNECTION TO &SQLEng.
+	(
+
+    /* Place metric extract query here */     
+
+	);
+QUIT;
+
+/****************************************************************/
+/* Reconcile SMEDs and Key Metric Extract datasets */
+/****************************************************************/
+
+*ADD THE TABLE NAME THAT IS BEING UPLOADED FOR REPORT USAGE, THE NAME OF THE NUMERATOR FIELD, AND THE NAME OF THE DENOMINATOR FIELD;
+%LET SMEDataset = ;
+%LET SMEDNum = ;
+%LET SMEDDen = ;
+
+PROC SORT DATA= &SMEDataset. OUT= SMEDResultDtls;
+	WHERE &SMEDDen. = 1;
+	BY ClaimYear ClaimNbr PropNbr;
+RUN;
+
+PROC CONTENTS DATA= SMEResultDtls OUT= SMEResultDtls_C (KEEP = NAME) NOPRINT;
+RUN;
+
+PROC SQL NOPRINT;
+	SELECT NAME INTO :SME_FIELDS SEPARATED BY " " FROM SMEResultDtls_C;
+QUIT;
+%PUT &SME_FIELDS.;
+
+PROC SORT DATA= KMResultDtls;
+	BY ClaimYear ClaimNbr PropNbr;
+RUN;
+
+PROC CONTENTS DATA= KMResultDtls OUT= KMResultDtls_C (KEEP = NAME) NOPRINT;
+RUN;
+
+PROC SQL NOPRINT;
+	SELECT NAME INTO :BI_FIELDS SEPARATED BY " " FROM KMResultDtls_C;
+QUIT;
+%PUT &BI_FIELDS.;
+
+DATA SMEAndKM SMEOnly (KEEP= &SME_FIELDS.) KMOnly (KEEP= &BI_FIELDS.);
+MERGE SMEDResultDtls (IN=A) KMResultDtls (IN=B);
+	BY ClaimYear ClaimNbr PropNbr;
+
+	IF A AND B THEN OUTPUT SME_AND_KM;
+	ELSE IF A AND NOT B THEN OUTPUT SMEOnly;
+	ELSE IF NOT A AND B THEN OUTPUT KMOnly;
+
+RUN;
+
+DATA ReconciledNum UnreconciledNum UnreconciledDen;
+SET SMEAndKM;
+
+	IF &SMEDNum. NE Numerator THEN OUTPUT UnreconciledNum;
+	ELSE IF &SMEDDen. NE Denominator THEN OUTPUT UnreconciledDen;
+	ELSE OUTPUT ReconciledNum;
+
+RUN;
+
+PROC SUMMARY DATA= ReconciledNum NWAY MISSING;
+	CLASS MetricAcctMonth;
+	VAR Numerator Denominator;
+	OUTPUT OUT= AGGMonthlyResults (DROP = _TYPE_ _FREQ_) SUM= ;
+RUN;
+
+/****************************************************************/
+/* EXPORT OUTPUTS FOR DOCUMENTATION AND INVESTIGATION REFERENCE */
+/****************************************************************/
+
+PROC EXPORT 
+	DATA = AGGMonthlyResults
+	OUTFILE = "/sso/win_appsprod/ClaimsControl/Public/BI/Consultation/KeyMetrics/Metrics/Photo Estimate/&MetricAlias.ReconOutputs.xlsx"
+	DBMS = XLSX REPLACE;
+	SHEET = "AGG Monthly Summary";
+RUN;
+
+ 
