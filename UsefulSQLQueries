@@ -1,0 +1,347 @@
+/*FULL METRIC RELOAD IN METRIC STACK*/    
+exec dbo.USPMetricMart @LoadType = 'Full',@UserMetricKey = 88;
+
+/*RUN THESE STORED PROCEDURES WHEN HAVING TO UPDATE THE ENTIRE METRIC MART*/  
+EXEC dbo.USPMetricMart @LoadType = 'Incremental';
+EXEC dbo.USPMetricMartMonthlySnapshot;
+
+/*TRUNCATE SOURCE. TABLE CODE*/
+
+EXEC dbo.SetTableVersionOnOff
+    @tname = N'ALCHSrvyClmV2'
+   ,@schema = N'source'
+   ,@OnOff = 'Off';
+
+EXEC dbo.TruncateTable
+    @tname = 'ALCHSrvyClmV2'    -- sysname
+   ,@schema = 'source';         -- sysname
+
+
+EXEC dbo.SetTableVersionOnOff
+    @tname = N'ALCHSrvyClmV2'
+   ,@schema = N'Source'
+   ,@OnOff = N'ON'
+   ,@HstTbl = 'ALCHSrvyClmV2History'
+   ,@HstSchema = 'source'; 
+
+/*GET TABLE ROW COUNTS FOR DATABASE*/
+
+SELECT 
+	SCHEMA_NAME(schema_id) AS [SchemaName],
+	[Tables].name AS [TableName],
+	SUM([Partitions].[rows]) AS [TotalRowCount]
+
+FROM 
+	sys.tables AS [Tables]
+	JOIN sys.partitions AS [Partitions] ON 
+		[Tables].[object_id] = [Partitions].[object_id]
+			AND [Partitions].index_id IN ( 0, 1 )
+
+WHERE 
+	[Tables].name NOT LIKE '%History%'
+
+GROUP BY 
+	SCHEMA_NAME(schema_id), [Tables].name
+
+/*SEARCH COLUMNS IN DATABASE*/
+
+USE IntelliLeadReporting
+GO
+
+SELECT 
+	t.name AS table_name,
+	SCHEMA_NAME(schema_id) AS schema_name,
+	c.name AS column_name
+FROM 
+	sys.tables AS t
+	INNER JOIN sys.columns c ON t.OBJECT_ID = c.OBJECT_ID
+
+WHERE 
+	c.name LIKE '%ClaimFeaKey%'
+
+ORDER BY 
+	column_name,
+	schema_name, 
+	table_name
+
+
+
+/*CURRENT PROCESSES RUNNING*/
+
+select * from PCAStage.audit.executionlog where packagename like 'KM%' order by 1 desc
+
+\\proghsz\east\AppsHSZ\ssisprd\Scripts\ClaimsBI\ClaimsBILogs
+    
+CREATE TABLE #sp_who2
+    (
+        SPID INT
+       ,Status VARCHAR(255)
+       ,Login VARCHAR(255)
+       ,HostName VARCHAR(255)
+       ,BlkBy VARCHAR(255)
+       ,DBName VARCHAR(255)
+       ,Command VARCHAR(255)
+       ,CPUTime INT
+       ,DiskIO INT
+       ,LastBatch VARCHAR(255)
+       ,ProgramName VARCHAR(255)
+       ,SPID2 INT
+       ,REQUESTID INT
+    );
+
+
+INSERT INTO #sp_who2
+EXEC sys.sp_who2;
+
+
+SELECT
+    who.spid
+   ,who.status
+   ,who.Login
+   ,who.hostname
+   ,who.BlkBy
+   ,who.DBName
+   ,who.Command
+   ,who.CPUTime
+   ,who.DiskIO
+   ,who.LastBatch
+   ,who.ProgramName
+   ,who.SPID2
+   ,who.REQUESTID
+   ,st.text
+FROM
+    #sp_who2                   AS who
+    LEFT JOIN sys.sysprocesses AS sp ON who.SPID = sp.spid
+    CROSS APPLY sys.dm_exec_sql_text(sp.sql_handle) st
+-- Add any filtering of the results here :
+WHERE
+    who.DBName <> 'master'
+-- Add any sorting of the results here :
+ORDER BY
+    who.CPUTime DESC
+   ,who.DiskIO DESC
+   ,who.DBName ASC;
+
+
+DROP TABLE #sp_who2;
+
+select * from audit.executionlog where packagename like 'KM%' order by 1 desc;
+
+
+
+
+
+SELECT
+    des.session_id
+   ,des.status
+   ,des.login_name
+   ,des.[host_name]
+   ,der.blocking_session_id
+   ,DB_NAME(der.database_id)                    AS database_name
+   ,der.command
+   ,des.cpu_time
+   ,des.reads
+   ,des.writes
+   ,dec.last_write
+   ,des.[program_name]
+   ,der.wait_type
+   ,der.wait_time
+   ,der.last_wait_type
+   ,der.wait_resource
+   ,CASE des.transaction_isolation_level
+        WHEN 0 THEN 'Unspecified'
+        WHEN 1 THEN 'ReadUncommitted'
+        WHEN 2 THEN 'ReadCommitted'
+        WHEN 3 THEN 'Repeatable'
+        WHEN 4 THEN 'Serializable'
+        WHEN 5 THEN 'Snapshot'
+    END                                         AS transaction_isolation_level
+   ,OBJECT_NAME(dest.objectid, der.database_id) AS OBJECT_NAME
+   ,SUBSTRING(dest.text, der.statement_start_offset / 2, (CASE
+                                                              WHEN der.statement_end_offset = -1 THEN DATALENGTH(dest.text)
+                                                              ELSE der.statement_end_offset
+                                                          END - der.statement_start_offset
+                                                         ) / 2
+    )                                           AS [executing statement]
+   ,deqp.query_plan
+FROM
+    sys.dm_exec_sessions                             des
+    LEFT JOIN sys.dm_exec_requests                   der ON des.session_id = der.session_id
+    LEFT JOIN sys.dm_exec_connections                dec ON des.session_id = dec.session_id
+    CROSS APPLY sys.dm_exec_sql_text(der.sql_handle) dest
+    CROSS APPLY sys.dm_exec_query_plan(der.plan_handle) deqp
+WHERE
+    des.session_id <> @@SPID
+    AND des.login_name = 'PROG1\ZBCLM01P'
+	
+	
+	
+	
+SELECT
+    mmjc.DimMetricKey
+   ,new2.CoreUpdateFlag
+   ,new.SummaryUpdateFlag
+FROM
+    etl.MetricMartJobConfig mmjc WITH(NOLOCK)
+    LEFT JOIN(
+        SELECT
+            mmjc.DimMetricKey
+            ,IIF(ISNULL(mmc.DimMetricKey, -1) = -1,'No','Yes') AS SummaryUpdateFlag
+        FROM
+            etl.MetricMartJobConfig mmjc WITH(NOLOCK)
+            LEFT JOIN (
+                SELECT
+                    DISTINCT
+                    mms.DimMetricKey
+                FROM
+                    dbo.MetricMartSummary mms WITH(NOLOCK)
+                WHERE
+                    MetricAcctMonth = (SELECT   MAX(AcctCCYYMMNbr)FROM  dbo.DimMonth WHERE  AcctMonthOldCnt = 1)
+                ) mmc ON mmc.DimMetricKey = mmjc.DimMetricKey 
+        WHERE
+            mmjc.MetricMartSummaryInd = 1
+            AND mmjc.ActiveInd = 1
+    ) AS new ON mmjc.DimMetricKey = new.DimMetricKey
+    LEFT JOIN (
+        SELECT
+            mmjc.DimMetricKey
+            ,IIF(ISNULL(mmc.DimMetricKey, -1) = -1,'No','Yes') AS CoreUpdateFlag
+        FROM
+            etl.MetricMartJobConfig mmjc WITH(NOLOCK)
+            LEFT JOIN (
+                SELECT
+                    DISTINCT
+                    mms.DimMetricKey
+                FROM
+                    dbo.MetricMart mms WITH(NOLOCK)
+                WHERE
+                    MetricAcctMonth = (SELECT   MAX(AcctCCYYMMNbr)FROM  dbo.DimMonth WHERE  AcctMonthOldCnt = 1)
+                ) mmc ON mmc.DimMetricKey = mmjc.DimMetricKey 
+        WHERE
+            mmjc.MetricMartInd = 1
+            AND mmjc.ActiveInd = 1
+    ) AS new2 ON mmjc.DimMetricKey = new2.DimMetricKey
+WHERE
+    mmjc.ActiveInd = 1
+    AND mmjc.MetricMartInd = 1
+ORDER BY
+    CoreUpdateFlag
+    ,SummaryUpdateFlag
+    ,mmjc.DimMetricKey;
+	
+/*MSS-P1-CLMBIRSKRPT-01, PCAStage: Check to make sure job is running and when it kicked off*/
+
+USE PCAStage
+GO
+select * from PCAStage.audit.executionlog where packagename like 'KM%' order by 1 desc
+
+/*Check log, may take a while for error to write out to log*/
+
+\\proghsz\east\AppsHSZ\ssisprd\Scripts\ClaimsBI\ClaimsBILogs
+
+/*Resubmit Job via SRM*/
+
+WCBICWK0
+
+/*MSS-P1-CLAIMSKEYMETRICS-01, ClaimsBIMetrics: Check to see what is actually running*/
+
+USE ClaimsBIMetrics
+GO
+SELECT
+    des.session_id
+   ,des.status
+   ,des.login_name
+   ,des.[host_name]
+   ,der.blocking_session_id
+   ,DB_NAME(der.database_id)                    AS database_name
+   ,der.command
+   ,des.cpu_time
+   ,des.reads
+   ,des.writes
+   ,dec.last_write
+   ,des.[program_name]
+   ,der.wait_type
+   ,der.wait_time
+   ,der.last_wait_type
+   ,der.wait_resource
+   ,CASE des.transaction_isolation_level
+        WHEN 0 THEN 'Unspecified'
+        WHEN 1 THEN 'ReadUncommitted'
+        WHEN 2 THEN 'ReadCommitted'
+        WHEN 3 THEN 'Repeatable'
+        WHEN 4 THEN 'Serializable'
+        WHEN 5 THEN 'Snapshot'
+    END                                         AS transaction_isolation_level
+   ,OBJECT_NAME(dest.objectid, der.database_id) AS OBJECT_NAME
+   ,SUBSTRING(dest.text, der.statement_start_offset / 2, (CASE
+                                                              WHEN der.statement_end_offset = -1 THEN DATALENGTH(dest.text)
+                                                              ELSE der.statement_end_offset
+                                                          END - der.statement_start_offset
+                                                         ) / 2
+    )                                           AS [executing statement]
+   ,deqp.query_plan
+FROM
+    sys.dm_exec_sessions                             des
+    LEFT JOIN sys.dm_exec_requests                   der ON des.session_id = der.session_id
+    LEFT JOIN sys.dm_exec_connections                dec ON des.session_id = dec.session_id
+    CROSS APPLY sys.dm_exec_sql_text(der.sql_handle) dest
+    CROSS APPLY sys.dm_exec_query_plan(der.plan_handle) deqp
+WHERE
+    des.session_id <> @@SPID
+	AND des.login_name = 'PROG1\ZBCLM01P'
+ORDER BY
+    des.session_id;
+
+--At month end see what metrics are complete and what metrics remain to be updat
+SELECT
+    mmjc.DimMetricKey
+   ,new2.CoreUpdateFlag
+   ,new.SummaryUpdateFlag
+FROM
+    etl.MetricMartJobConfig mmjc WITH(NOLOCK)
+    LEFT JOIN(
+        SELECT
+            mmjc.DimMetricKey
+			,IIF(ISNULL(mmc.DimMetricKey, -1) = -1,'No','Yes') AS SummaryUpdateFlag
+        FROM
+			etl.MetricMartJobConfig mmjc WITH(NOLOCK)
+			LEFT JOIN (
+				SELECT
+					DISTINCT
+					mms.DimMetricKey
+				FROM
+					dbo.MetricMartSummary mms WITH(NOLOCK)
+				WHERE
+					MetricAcctMonth = (SELECT   MAX(AcctCCYYMMNbr)FROM  dbo.DimMonth WHERE  AcctMonthOldCnt = 1)
+				) mmc ON mmc.DimMetricKey = mmjc.DimMetricKey 
+		WHERE 
+			mmjc.MetricMartSummaryInd = 1
+			AND mmjc.ActiveInd = 1
+
+    ) AS new ON mmjc.DimMetricKey = new.DimMetricKey
+	LEFT JOIN (
+        SELECT
+            mmjc.DimMetricKey
+			,IIF(ISNULL(mmc.DimMetricKey, -1) = -1,'No','Yes') AS CoreUpdateFlag
+        FROM
+			etl.MetricMartJobConfig mmjc WITH(NOLOCK)
+			LEFT JOIN (
+				SELECT
+					DISTINCT
+					mms.DimMetricKey
+				FROM
+					dbo.MetricMart mms WITH(NOLOCK)
+				WHERE
+					MetricAcctMonth = (SELECT   MAX(AcctCCYYMMNbr)FROM  dbo.DimMonth WHERE  AcctMonthOldCnt = 1)
+				) mmc ON mmc.DimMetricKey = mmjc.DimMetricKey 
+		WHERE 
+			mmjc.MetricMartInd = 1
+			AND mmjc.ActiveInd = 1
+	) AS new2 ON mmjc.DimMetricKey = new2.DimMetricKey
+WHERE
+    mmjc.ActiveInd = 1
+	AND mmjc.MetricMartInd = 1
+ORDER BY
+	CoreUpdateFlag
+	,SummaryUpdateFlag
+    ,mmjc.DimMetricKey;
