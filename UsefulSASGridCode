@@ -1,0 +1,560 @@
+/****************************************************************************************/
+/* @@@ FIRST TIME SETUP AND CONTINUED MAINTENANCE */
+/****************************************************************************************/
+
+1) To request access for new employees create an SRM.  Search / Select SAS Support.
+   Select Request Now, then select SAS GRID Access and Support, Access to SAS for 
+   new users, and enter in each employee one at a time.
+   
+2) First time in SAS Enterprise Guide go to Tools and select SAS Enterprise Guide Exploerer.
+   In the screen that pops up go to File and select Manage Logins (it takes a while to come up).
+   Select Default Auth and enter your User ID and Password and select OK.  If you will be
+   using DB2 or Oracle you need to select add, select the Autentication Domain and enter
+   the User ID and Password for each of those as well.
+   ***NOTE:  After initial set up you will need to update your password for each of these 
+			 every time your required to update your windows login password (every 6 monthsish).
+
+
+/****************************************************************************************/
+/* @@@ OPTIONS */
+/****************************************************************************************/
+
+*DEFAULT OPTIONS THAT HIGHLY RECOMMENDED FOR EVERY PROGRAMS;
+OPTIONS MPRINT MLOGIC SYMBOLGEN NOLABEL FULLSTIMER VALIDVARNAME=V7;
+
+/****************************************************************************************/
+/* @@@ LOCATIONS */
+/****************************************************************************************/
+
+*U DRIVE (ALL LETTERS ARE LOWER CASE ONLY ... I BELIEVE);
+LIBNAME UDrive "/home/a093163";
+
+*LINUX PATHS (HIGHLY RECOMMEND YOU USE THESE IN ALL CODING (ACCESS DATABASES ARE THE ONLY EXCEPTION);
+LIBNAME PUBLIC "/sso/win_appsprod/ClaimsControl/Public/BI";
+LIBNAME PRIVATE "/sso/win_appsprod/ClaimsControl/Private/BI";
+
+*WINDOWS PATHS (USE TO NAVIGATE TO MOUNTED DRIVE LOCATIONS FROM YOU LAPTOP OR ANY PROGRAMS);
+/*LIBNAME PUBLIC "\\prog1\east\AppsProd\nfs\sas_prod\ClaimsControl\Public\BI";*/
+/*LIBNAME PRIVATE "\\prog1\east\AppsProd\nfs\sas_prod\ClaimsControl\Private\BI";*/
+
+/****************************************************************************************/
+/* @@@ DB2 SERVER CONNECTIONS */
+/****************************************************************************************/
+
+*DB2 LIBNAME CONNECTIONS;
+LIBNAME LRD ODBC SCHEMA=LRD READ_ISOLATION_LEVEL=RU %DB2CONN(DSN=DB2P);
+LIBNAME CDW ODBC SCHEMA=CDW READ_ISOLATION_LEVEL=RU %DB2CONN(DSN=DB2P);
+LIBNAME DSE ODBC SCHEMA=DSE READ_ISOLATION_LEVEL=RU %DB2CONN(DSN=DB2P);
+
+*DB2 PASSTHROUGH CONNECTION (ONLY USE WHEN YOU ONLY NEED TO DOWNLOAD DATA);
+PROC SQL;   
+CONNECT TO ODBC AS DB2(%DB2CONN(DSN=DB2P));
+CREATE TABLE DB2PassthroughTable AS SELECT * FROM CONNECTION TO DB2
+	(	
+
+		/*SQL CODE*/
+		SELECT
+			ACCT_CCYYMM,
+			ACCT_MO_ABBR,
+			DAY_NBR
+
+		FROM 
+			DSE.DATE
+
+		WHERE
+			YEAR_NBR >= 2020 AND DAY_NBR = 15
+
+		ORDER BY 
+			ACCT_CCYYMM
+
+	);
+QUIT;
+
+*DB2 RSUBMIT CONNECTION (ONLY USE WHEN YOU NEED TO UPLOAD DATA);
+OPTIONS NOCONNECTMETACONNECTION;
+%LET MYNODE=F0TCPIP;
+SIGNON MYNODE.SASSPWN AUTHDOMAIN=DB2;
+
+RSUBMIT;
+
+	LIBNAME DB2LIB DB2 SSID=DB0P;
+
+	PROC UPLOAD DATA = DB2PassthroughTable OUT = DB2PassthroughTableUp;
+	RUN;
+
+	PROC DATASETS LIBRARY = DB2LIB NODETAILS;
+	 	DELETE DB2PassthroughTableUp;
+	QUIT;
+
+	DATA DB2LIB.DB2PassthroughTableUp (DBTYPE = (Acct_CCYYMM = 'INT' ACCT_MO_ABBR = 'CHAR(3)' DAY_NBR = 'INT'));
+	SET PassthroughTableUp;
+	RUN;
+
+	PROC SQL;
+		CONNECT TO DB2 (SSID=DB0P);
+		CREATE TABLE DB2RSubmitTable AS SELECT * FROM CONNECTION TO DB2 
+		(
+		
+			/*SQL CODE*/
+			SELECT
+				ACCT_CCYYMM,
+				MO_DESC
+
+			FROM
+				DSE.DATE AS A
+				INNER JOIN DB2PassthroughTableUp AS B ON A.ACCT_CCYYMM = B.ACCT_CCYYMM AND A.DAY_NBR = B.DAY_NBR
+
+			ORDER BY 
+				ACCT_CCYYMM
+					
+			
+		);
+	QUIT;
+	
+	PROC DOWNLOAD DATA = DB2RSubmitTable OUT = DB2RSubmitTableDown;
+	RUN;
+	
+ENDRSUBMIT;
+SIGNOFF;
+
+/****************************************************************************************/
+/* @@@ SQL CONNECTIONS */
+/****************************************************************************************/
+
+*SQL SERVER CONNECTIONS STRING (THIS CAN BE USED IN BOTH LIBNAME AND PASSTHROUGH CONNECTIONS);
+%LET LKP = "DSN=SQLServer; SERVER=MSS-P1-CLAIMSCCBI-01; DATABASE=BISSClaimsCmnDmnsn";
+
+*SQL SERVER LIBNAME CONNECTION;
+LIBNAME LKP &SQLEng NOPROMPT=&LKP &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+*SQL SERVER PASSTHROUGH CONNECTION;
+PROC SQL NOPRINT;
+	CONNECT TO &SQLEng (NOPROMPT=&LKP &BulkParms READ_ISOLATION_LEVEL=RU);
+	CREATE TABLE SQLPassthroughTable AS SELECT * FROM CONNECTION TO &SQLEng.
+	(
+
+		/*SQL CODE*/
+		SELECT
+			AcctCCYYMMNbr
+
+		FROM 
+			dbo.DimMonthRef
+
+		WHERE
+			YEAR_NBR >= 2020
+
+		ORDER BY
+			AcctCCYYMMNbr
+
+	);
+QUIT;
+
+/*KEY METRIC WAREHOUSE*/
+%LET LAND = "DSN=SQLServer; SERVER=MSS-P1-ClaimsKeyMetrics-01; DATABASE=ClaimsBIStage";
+LIBNAME LAND &SQLEng NOPROMPT=&LAND &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+%LET SOURCE = "DSN=SQLServer; SERVER=MSS-P1-ClaimsKeyMetrics-01; DATABASE=ClaimsBIMetrics";
+LIBNAME SOURCE &SQLEng NOPROMPT=&SOURCE &BulkParms SCHEMA = source READ_ISOLATION_LEVEL=RU;
+
+%LET PROD = "DSN=SQLServer; SERVER=MSS-P1-ClaimsKeyMetrics-01; DATABASE=ClaimsBIMetrics";
+LIBNAME PROD &SQLEng NOPROMPT=&PROD &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+/*SQL DATA STORE*/
+%LET STAGE = "DSN=SQLServer; SERVER=MSS-P1-CLAIMSCCBI-01; DATABASE=BISSCLAIMSCNTRLSTAGE";
+LIBNAME STAGE &SQLEng NOPROMPT=&STAGE &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+%LET LKP = "DSN=SQLServer; SERVER=MSS-P1-CLAIMSCCBI-01; DATABASE=BISSClaimsCmnDmnsn";
+LIBNAME LKP &SQLEng NOPROMPT=&LKP &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+%LET RPT = "DSN=SQLServer; SERVER=MSS-P1-CLAIMSCCBI-01; DATABASE=BISSCLAIMSCNTRLRPT";
+LIBNAME RPT &SQLEng NOPROMPT=&RPT &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+%LET KEY = "DSN=SQLServer; SERVER=MSS-P1-CLAIMSCCBI-01; DATABASE=BISSCLAIMSKEYMSR";
+LIBNAME KEY &SQLEng NOPROMPT=&KEY &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+/*MISC*/
+%LET SDS = "DSN=SQLServer; SERVER=MSS-P1-CLAIMS-ClaimsProperty-01; DATABASE=ClaimsProperty";
+LIBNAME SDS &SQLEng NOPROMPT=&SDS &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;  
+
+%LET MDP = "DSN=SQLServer; SERVER=MSS-P1-CLAIMS-CLAIMSDECPOINT-02; DATABASE=PSHMMedical";
+LIBNAME MDP &SQLEng NOPROMPT=&MDP &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+%LET SENTRY = "DSN=SQLServer; SERVER=MSS-P1-SENTRY-01; DATABASE=SQLSentry";
+LIBNAME SENTRY &SQLEng NOPROMPT=&SENTRY &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+%LET MYCARS = "DSN=SQLServer; SERVER=MSS-P1-Claims-Claims-02; DATABASE=P_CLAIMSDB2";
+LIBNAME MYCARS &SQLEng NOPROMPT=&MYCARS &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+/****************************************************************************************/
+/* @@@ PDW CONNECTIONS */
+/****************************************************************************************/
+
+*PDW SERVER CONNECTIONS STRING (THIS CAN BE USED IN BOTH LIBNAME AND PASSTHROUGH CONNECTIONS);
+%LET PDW = "DSN=PDWProd; DATABASE=Dimension";
+
+*PDW SERVER LIBNAME CONNECTION;
+LIBNAME PDW &SQLEng NOPROMPT=&PDW SCHEMA = COR READ_ISOLATION_LEVEL=RU;
+
+*PDW SERVER PASSTHROUGH CONNECTION;
+PROC SQL NOPRINT;
+	CONNECT TO &SQLEng (NOPROMPT=&PDW READ_ISOLATION_LEVEL=RU);
+	CREATE TABLE PDWPassthroughTable AS SELECT * FROM CONNECTION TO &SQLEng.
+	(
+
+		/*SQL CODE*/
+		SELECT
+			AccountingCCYYMM
+
+		FROM 
+			cor.Date
+
+		WHERE
+			AccountingCCYY >= 2020 AND DayNbr = 15
+
+		ORDER BY
+			AccountingCCYYMM
+
+	);
+QUIT;
+
+*PDW SERVER CONNECTIONS STRING (THIS CAN BE USED IN BOTH LIBNAME AND PASSTHROUGH CONNECTIONS);
+%LET PDW = "DSN=PDWProd; DATABASE=Claims";
+
+*PDW SERVER LIBNAME CONNECTION;
+LIBNAME PDW &SQLEng NOPROMPT=&PDW SCHEMA = DBO READ_ISOLATION_LEVEL=RU;
+
+*PDW SERVER PASSTHROUGH CONNECTION;
+PROC SQL NOPRINT;
+	CONNECT TO &SQLEng (NOPROMPT=&PDW READ_ISOLATION_LEVEL=RU);
+	CREATE TABLE PDWPassthroughTable AS SELECT * FROM CONNECTION TO &SQLEng.
+	(
+
+		/*SQL CODE*/
+		SELECT
+			/*SQL CODE*/
+
+		FROM 
+			dbo.ClaimsNotes
+
+		WHERE
+			/*SQL CODE*/
+
+		ORDER BY
+			/*SQL CODE*/
+
+	);
+QUIT;
+
+
+*PDW SERVER CONNECTIONS STRING (THIS CAN BE USED IN BOTH LIBNAME AND PASSTHROUGH CONNECTIONS);
+%LET PDW = "DSN=PDWProd; DATABASE=Dimension";
+
+*PDW SERVER LIBNAME CONNECTION;
+LIBNAME PDW &SQLEng NOPROMPT=&PDW SCHEMA = COR READ_ISOLATION_LEVEL=RU;
+
+*PDW SERVER PASSTHROUGH CONNECTION;
+PROC SQL NOPRINT;
+	CONNECT TO &SQLEng (NOPROMPT=&PDW READ_ISOLATION_LEVEL=RU);
+	CREATE TABLE PDWPassthroughTable AS SELECT * FROM CONNECTION TO &SQLEng.
+	(
+
+		/*SQL CODE*/
+		SELECT
+			AccountingCCYYMM
+
+		FROM 
+			cor.Date
+
+		WHERE
+			AccountingCCYY >= 2020 AND DayNbr = 15
+
+		ORDER BY
+			AccountingCCYYMM
+
+	);
+QUIT;
+
+/****************************************************************************************/
+/* @@@ HADOOP CONNECTIONS */
+/****************************************************************************************/
+
+*HADOOP SERVER LIBNAME CONNECTION;
+LIBNAME HIVE ODBC DSN = "HadoopPrd" SCHEMA = DIM AUTHDOMAIN = DefaultAuth;
+
+*HADOOP SERVER PASSTHROUGH CONNECTION;
+PROC SQL NOPRINT;
+	CONNECT TO ODBC (DSN = "HadoopPrd" AUTHDOMAIN = DefaultAuth);
+	CREATE TABLE HivePassthroughTable AS SELECT * FROM CONNECTION TO ODBC
+	(
+
+		/*SQL CODE*/
+		SELECT
+			UserName,
+			FirstName
+
+		FROM 
+			admin.HadoopUsers
+
+		ORDER BY
+			UserName
+
+	);
+QUIT;
+
+/*IN ORDER TO RUN HADOOP QUERIES YOU WILL HAVE HAD TO LOGGED INTO HUE ONCE OR YOU WILL GET THE FOLLOWING ERROR.
+ERROR: CLI open cursor error: [Hortonworks] [Hardy] (35) Error from server: error code: '1' error 
+message: 'Error while compiling statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask'.
+
+This error occurs when your userid is not yet set up for CDP Hadoop. 
+In order to set up your userid for CDP Hadoop and avoid the error from happening:
+
+Log into Hue
+In Chrome, go to https://hueprd:8889
+Login credentials are LANid and password
+Re-launch the application and the error should no longer occur.
+
+/****************************************************************************************/
+/* @@@ ORACLE CONNECTIONS */
+/****************************************************************************************/
+
+PROC SQL;
+CONNECT TO ODBC (dsn=OraTestDSN authdomain=Oracle);
+  CREATE TABLE TEST AS
+   SELECT * FROM CONNECTION TO ODBC 
+( SELECT 
+     sysdate
+FROM dual 
+);
+quit;
+
+
+/****************************************************************************************/
+/* @@@ FILE CONNECTIONS */
+/****************************************************************************************/
+
+*EXPORT / IMPORT EXCEL FILES;
+PROC EXPORT 
+	DATA = DB2PassthroughTable
+	OUTFILE = "/sso/win_appsprod/ClaimsControl/Public/BI/SampleFile1.xlsx"
+	DBMS = XLSX REPLACE;
+	SHEET = "Sample1";
+RUN;
+
+PROC IMPORT 
+	OUT = Sample1Import
+	DATAFILE = "/sso/win_appsprod/ClaimsControl/Public/BI/SampleFile1.xlsx"
+	DBMS = XLSX REPLACE;
+	SHEET = "Sample1";
+RUN;
+
+*EXPORT / IMPORT CSV FILES;
+PROC EXPORT 
+	DATA= DB2PassthroughTable
+	OUTFILE= "/sso/win_appsprod/ClaimsControl/Public/BI/SampleFile2.csv"
+	DBMS= CSV REPLACE;
+RUN;
+
+PROC IMPORT 
+	OUT= Sample2Import
+	DATAFILE= "/sso/win_appsprod/ClaimsControl/Public/BI/SampleFile2.csv"
+	DBMS= CSV REPLACE;
+RUN;
+
+*EXPORT / IMPORT TAB FILES;
+PROC EXPORT 
+	DATA= DB2PassthroughTable
+	OUTFILE= "/sso/win_appsprod/ClaimsControl/Public/BI/SampleFile3.txt"
+	DBMS= TAB REPLACE;
+RUN;
+
+PROC IMPORT 
+	OUT= Sample3Import
+	DATAFILE= "/sso/win_appsprod/ClaimsControl/Public/BI/SampleFile3.txt"
+	DBMS= TAB REPLACE;
+RUN;
+
+*EXPORT / IMPORT CUSTOM DELIMITED FILES;
+PROC EXPORT 
+	DATA= DB2PassthroughTable
+	OUTFILE= "/sso/win_appsprod/ClaimsControl/Public/BI/SampleFile4.txt"
+	DBMS= DLM REPLACE;
+	DELIMITER= "|";
+RUN;
+
+PROC IMPORT 
+	OUT= Sample4Import
+	DATAFILE= "/sso/win_appsprod/ClaimsControl/Public/BI/SampleFile4.txt"
+	DBMS= DLM REPLACE;
+	DELIMITER= "|";
+RUN;
+
+*PUT / INPUT CUSTOM DELIMITED FILES;
+FILENAME TXT_DATA "/sso/win_appsprod/ClaimsControl/Public/BI/SampleFile5.txt";
+
+DATA _NULL_;
+SET DB2PassthroughTable;
+FILE TXT_DATA DELIMITER = '09'X DSD;
+
+	PUT 
+		ACCT_CCYYMM
+		ACCT_MO_ABBR
+		DAY_NBR
+	;
+
+RUN;
+
+DATA Sample5Import;
+INFILE TXT_DATA DELIMITER = '09'X DSD;
+
+	INPUT
+		ACCT_CCYYMM		: 11.
+		ACCT_MO_ABBR	: $3.
+		DAY_NBR			: 8.
+	;
+RUN;
+
+
+*EXPORT / IMPORT ACCESS DATABASES (ACCESS ARE ONLY ACCESSIBLE THROUGH PC FILE SERVER CONNECTION);
+PROC EXPORT	
+	DATA = DB2PassthroughTable
+	OUTTABLE = "Sample5"
+	DBMS = ACCESSCS REPLACE;
+	DATABASE = "\\prog1\east\AppsProd\nfs\sas_prod\ClaimsControl\Public\BI\SampleDB1.accdb";
+	PORT = 9621;
+	SERVER = &srv.;
+	SERVERUSER = "&da_lanid";
+	SERVERPASS = "&da_pwd";
+RUN;
+
+PROC IMPORT	
+	OUT = Sample5Import
+	DATATABLE = "Sample5"
+	DBMS = ACCESSCS REPLACE;
+	DATABASE = "\\prog1\east\AppsProd\nfs\sas_prod\ClaimsControl\Public\BI\SampleDB1.accdb";
+	PORT = 9621;
+	SERVER = &srv.;
+	SERVERUSER = "&da_lanid";
+	SERVERPASS = "&da_pwd";
+RUN;
+
+/****************************************************************************************/
+/* USEFUL CODE  */
+/****************************************************************************************/
+
+*AUTOMATICALLY GENERATE ACCOUNT MONTH, SQL DATE, OR SAS DATE VALUES;
+PROC SQL NOPRINT;
+
+	*ACCOUNT MONTHS;
+	SELECT AcctCCYYMMNbr INTO :StartAcctMonth   TRIMMED FROM LKP.DimMonthRef WHERE AcctMonthOldCnt = 12;
+	SELECT AcctCCYYMMNbr INTO :EndAcctMonth     TRIMMED FROM LKP.DimMonthRef WHERE AcctMonthOldCnt = 1;
+	SELECT AcctCCYYMMNbr INTO :DeleteAcctMonth  TRIMMED FROM LKP.DimMonthRef WHERE AcctMonthOldCnt = 12;
+
+	*SQL SERVER DATES;
+	SELECT "'"||PUT(DATEPART(AcctMonthStartDate),MMDDYY10.)||"'" INTO :SQLStartDate   TRIMMED FROM LKP.DimMonthRef WHERE AcctMonthOldCnt = 12;
+	SELECT "'"||PUT(DATEPART(AcctMonthEndDate  ),MMDDYY10.)||"'"   INTO :SQLEndDate     TRIMMED FROM LKP.DimMonthRef WHERE AcctMonthOldCnt = 1;
+	SELECT "'"||PUT(DATEPART(AcctMonthStartDate),MMDDYY10.)||"'" INTO :SQLDeleteDate  TRIMMED FROM LKP.DimMonthRef WHERE AcctMonthOldCnt = 12;
+
+	*SAS SERVER / GRID DATES;
+	SELECT "'"||PUT(DATEPART(AcctMonthStartDate),DATE9.)||"'D" INTO :SASStartDate   TRIMMED FROM LKP.DimMonthRef WHERE AcctMonthOldCnt = 12;
+	SELECT "'"||PUT(DATEPART(AcctMonthEndDate  ),DATE9.)||"'D"   INTO :SASEndDate     TRIMMED FROM LKP.DimMonthRef WHERE AcctMonthOldCnt = 1;
+	SELECT "'"||PUT(DATEPART(AcctMonthStartDate),DATE9.)||"'D" INTO :SASDeleteDate  TRIMMED FROM LKP.DimMonthRef WHERE AcctMonthOldCnt = 12;	
+
+QUIT;
+%PUT &StartAcctMonth. &EndAcctMonth. &DeleteAcctMonth. 
+	&SQLStartDate. &SQLEndDate. &SQLDeleteDate. 
+		&SASStartDate. &SASEndDate. &SASDeleteDate.;
+
+*LOADING SAS DATASETS TO A SQL SERVER DATABASE TABLE; 
+%LET PROD = "DSN=SQLServer; SERVER=MSS-P1-CLAIMSCCBI-01; DATABASE=BISSClaimsCntrlRpt";
+LIBNAME PROD &SQLEng NOPROMPT=&PROD &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
+
+%LET SME_GRP = BI;
+
+*OPTION 1;
+%MACRO INSERT_INTO_TBL();
+
+	/*IF DESTINATION TABLE EXISTS TRUNCATE IT BEFORE LOADING NEW RECORDS*/
+	%IF %SYSFUNC(EXIST(PROD.&SME_GRP._SASGridTruncateTest)) %THEN %DO;
+
+		PROC SQL NOPRINT;
+			CONNECT TO &SQLEng. (NOPROMPT=&PROD. &BulkParms. READ_ISOLATION_LEVEL=RU);
+			EXECUTE(EXEC dbo.TruncateTable &SME_GRP._SASGridTruncateTest,dbo) BY &SQLEng;
+		QUIT;
+
+	%END;
+
+	/*IF DESTINATION TABLE DOES NOT EXIST CREATE IT BEFORE LOADING NEW RECORDS*/
+	%ELSE %DO;
+
+		PROC SQL NOPRINT;
+			CREATE TABLE PROD.&SME_GRP._SASGridTruncateTest LIKE DB2PassthroughTable;
+		QUIT;
+
+	%END;
+
+	/*INSERT RECORDS*/
+	PROC SQL;
+		INSERT INTO PROD.&SME_GRP._SASGridTruncateTest SELECT * FROM DB2PassthroughTable;
+	QUIT;
+
+%MEND INSERT_INTO_TBL;
+%INSERT_INTO_TBL;
+
+/*IF DESTINATION TABLE DOES NOT EXIST CREATE IT BEFORE LOADING NEW RECORDS*/
+
+*OPTION 2;
+%MACRO INSERT_INTO_TBL();
+
+	/*IF DESTINATION TABLE EXISTS DELETE RECORDS BASED ON WHERE CONDITIONS BEFORE LOADING NEW RECORDS*/
+	%IF %SYSFUNC(EXIST(PROD.&SME_GRP._SASGridDeleteTest)) %THEN %DO;
+
+		PROC SQL NOPRINT;
+			CONNECT TO &SQLEng. (NOPROMPT=&PROD. &BulkParms. READ_ISOLATION_LEVEL=RU);
+			EXECUTE(DELETE FROM DBO.&SME_GRP._SASGridDeleteTest WHERE ACCT_CCYYMM < &DeleteAcctMonth. OR ACCT_CCYYMM >= &EndAcctMonth.) BY &SQLEng;
+		QUIT;
+
+	%END;
+
+	/*IF DESTINATION TABLE DOES NOT EXIST CREATE IT BEFORE LOADING NEW RECORDS*/
+	%ELSE %DO;
+
+		PROC SQL NOPRINT;
+			CREATE TABLE PROD.&SME_GRP._SASGridDeleteTest LIKE DB2PassthroughTable;
+		QUIT;
+
+	%END;
+
+	/*INSERT RECORDS*/
+	PROC SQL;
+		INSERT INTO PROD.&SME_GRP._SASGridDeleteTest SELECT * FROM DB2PassthroughTable;
+	QUIT;
+
+%MEND INSERT_INTO_TBL;
+%INSERT_INTO_TBL;
+
+
+*THIS CODE ALLOWS YOU TO CREATE A MACRO WITH ALL ORGS IN AN ORG GROUP (INCLUDES SUB ORGS);
+PROC SQL NOPRINT;
+	SELECT DISTINCT "'"||ORG_CD||"'" INTO :GROUP_1051_ORGS SEPARATED BY "," 
+	FROM CDW.ORG_GROUP  
+	WHERE ORG_GRP_NBR IN (1051)
+	;
+QUIT;
+%PUT &GROUP_1051_ORGS.;
+
+*THIS CODE ALLOWS YOU TO CREATE A MACRO WITH ALL ORGS IN A SPECIFIED PARENT ORG (INCLUDES SUB ORGS);
+PROC SQL NOPRINT;
+	SELECT DISTINCT "'"||RPTG_ORG_CD||"'" INTO :NCRT_ORGS SEPARATED BY "," 
+	FROM CDW.MTHLY_ORG  
+	WHERE ORG_CD IN ('34678')
+	;
+QUIT;
+%PUT &NCRT_ORGS.;
+
+/****************************************************************************************/
+/****************************************************************************************/
+/****************************************************************************************/
+/* END OF PROGRAM */	
+/****************************************************************************************/
+/****************************************************************************************/
+/****************************************************************************************/
