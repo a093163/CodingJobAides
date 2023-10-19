@@ -48,7 +48,7 @@ QUIT;
 %LET SMEDNum = ;
 %LET SMEDDen = ;
 
-PROC SORT DATA= &SMEDataset. OUT= SMEDResultDtls;
+PROC SORT DATA= &SMEDataset. OUT= SMEResultDtls;
 	WHERE &SMEDDen. = 1;
 	BY ClaimYear ClaimNbr PropNbr;
 RUN;
@@ -77,7 +77,7 @@ DATA SMEAndKM SMEOnly (KEEP= &SME_FIELDS.) KMOnly (KEEP= &BI_FIELDS.);
 MERGE SMEDResultDtls (IN=A) KMResultDtls (IN=B);
 	BY ClaimYear ClaimNbr PropNbr;
 
-	IF A AND B THEN OUTPUT SME_AND_KM;
+	IF A AND B THEN OUTPUT SMEAndKM;
 	ELSE IF A AND NOT B THEN OUTPUT SMEOnly;
 	ELSE IF NOT A AND B THEN OUTPUT KMOnly;
 
