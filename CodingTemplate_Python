@@ -13,3 +13,18 @@ X07pdsbc
   o	Goto the U: drive 
   o	Open the file .credrc
   o	Update the PASSWORD= value
+
+Python
+•	Data Types
+  o	String
+  o	Float
+  o	Integer
+  o	Boolean
+•	Order of Operations
+  o	P | E | M D Floor Modulo | A S
+  o	() | ** | * / // % | + -
+•	Assignment Operator (and Incremental)
+  o	= += -= *= /= **= //= %=
+•	+ is used for concatenation
+•	Functions
+
