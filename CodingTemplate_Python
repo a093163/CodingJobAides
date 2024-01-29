@@ -1,0 +1,15 @@
+Visual Studio Code
+•	How to open my Python projects…
+  o	Open Visual Studio Code
+  o	Goto File -> Open Folder
+  o	Navigate to the path /home/a093163/Repos/GitHubRepo/
+  o	Enter the password for A093163@x07pdsbc (password configured in PIMS and .credrc file… if slipped mind look in credrc file… if need to reset to align with windows password see instructions below if it needs to be reset)
+
+X07pdsbc
+•	How to reset the password for x07pdsbc
+  o	Enter PIMS in a URL
+  o	Goto Manage Identity -> Manage Passwords
+  o	Select the Change button for the application PRD.Active Directory.PROGHSZ
+  o	Goto the U: drive 
+  o	Open the file .credrc
+  o	Update the PASSWORD= value
