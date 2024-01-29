@@ -1,0 +1,8 @@
+X07pdsbc
+•	How to reset the password for x07pdsbc
+  o	Enter PIMS in a URL
+  o	Goto Manage Identity -> Manage Passwords
+  o	Select the Change button for the application PRD.Active Directory.PROGHSZ
+  o	Goto the U: drive 
+  o	Open the file .credrc
+  o	Update the PASSWORD= value
