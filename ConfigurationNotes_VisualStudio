@@ -1,0 +1,3 @@
+https://tfsprod/tfs
+ETL_Configuration: \\proghszq\east\AppsHSZQ\ssisdev\ETLExec\ClaimsBI\ClaimsBIConfigurations2012\ETLConfig.DTSCONFIG
+ETL_Root_Dir: U:\Repos\CLA_BusinessData_TFS\BusinessData\SSIS\<project>\Dev
