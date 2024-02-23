@@ -551,6 +551,35 @@ PROC SQL NOPRINT;
 QUIT;
 %PUT &NCRT_ORGS.;
 
+/*THE FOLLOWING CODE ITERATES THROUGH EACH ROW IN A TABLE TO PREVENT REDUNDANT CODING*/
+
+%MACRO ITERATE(MACRO_VALUE);
+
+%MEND ITERATE;
+
+
+DATA MACRO_INPUTS;
+SET DSIN;
+
+	CALL SYMPUT("MACRO_VALUE"||COMPRESS(_N_),MACRO_VALUE);
+
+RUN;
+
+PROC SQL NOPRINT;
+	SELECT COUNT(*) INTO :INPUT_FILE_CNT FROM MACRO_INPUTS;
+QUIT;
+%PUT &INPUT_FILE_CNT.;
+
+%MACRO RUN_LOOP();
+	%IF %EVAL(&INPUT_FILE_CNT.) > 0 %THEN %DO;
+		%DO I = 1 %TO %EVAL(&INPUT_FILE_CNT.);
+	  		%ITERATE(&&MACRO_VALUE&I.);
+	  	%END;
+	%END;
+%MEND;
+
+%RUN_LOOP;
+
 /****************************************************************************************/
 /****************************************************************************************/
 /****************************************************************************************/
