@@ -1,0 +1,16 @@
+Project Management:
+1.  Over the course of the project we received a lot of questions asking what has been done.  Given a number of metrics kept changing, were worked then removed, or added with no definition, and SME response was poor 
+    we should find a better way (more detailed) to track our work and accomplishments on a more granular level.
+2.  Having logic not certified before ingestion was a known risk... but became a bigger issue as more and more metrics were introduced.  Work recommend this as a requirement if we had to do it again.
+3.  Having a monthly newsletter that went out to the claims control community and potential customers would help keep the project fresh in peoples minds.  Several cases where we worked with people then months
+    later the claim to know nothing about the project.
+4.  When we used Github as a repo for all metrics I believe the process was a lot smoother... once everyone started doing their own thing it was hard to track changes.
+
+Data Warehouse:
+1.  A success we had was a vast majority of scripts were standard versus each one having its own twist based on developer.  Would recommend this approach for any project.
+2.  Temporal tables on source and config jobs proved useful on several occasions... especially with slow moving dimensions like org and employee.
+
+ETL:
+1.  Metric extract scripts were a huge success.  They made the project a lot more nimble and eliminated the need for every small change to a metric to run through a few day pipeline process.
+2.  Would have liked to have more runtime stats about specific steps within package to track when significant table changes occur or even potential growth limits about to be acheived.
+
