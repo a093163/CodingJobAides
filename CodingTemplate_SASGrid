@@ -172,6 +172,34 @@ LIBNAME SENTRY &SQLEng NOPROMPT=&SENTRY &BulkParms SCHEMA = dbo READ_ISOLATION_L
 LIBNAME MYCARS &SQLEng NOPROMPT=&MYCARS &BulkParms SCHEMA = dbo READ_ISOLATION_LEVEL=RU;
 
 /****************************************************************************************/
+/* @@@ SNOWFLAKE CONNECTIONS */
+/****************************************************************************************/
+
+/*FIRST GET ACCESS AND A TOKEN FOLLOWING THE INSTRUCTIONS AT THE LINK BELOW*/
+https://dss/guides/snowflake/connecting_with_sas/#0
+
+/*LINK TO SNOWFLAKE DATABASE LIST THAT YOU CAN REFERENCE IN FROM STATEMENT*/
+https://app.snowflake.com/progressive/progressive/#/data/databases
+
+%sf_ref_acs_tok
+create table DATE as
+select * from connection to odbc
+(
+
+    	SELECT 
+    		DT_VAL 
+
+    	FROM 
+    		COMMON_DIMENSION.TARGET.DATE 
+    			
+    	WHERE 
+		DT_VAL <= GETDATE() 
+
+);
+disconnect from odbc;
+quit;
+
+/****************************************************************************************/
 /* @@@ PDW CONNECTIONS */
 /****************************************************************************************/
 
