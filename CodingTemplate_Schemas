@@ -1,6 +1,106 @@
+/*All*/
+
+USE [ClaimsBiStage]
+GO
+
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+/*Drop Table*/
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[<Schema>].[<TableName>]') AND type in (N'U'))
+DROP TABLE [<Schema>].[<TableName>]
+GO
+
+/*Drop Table - Temporal*/
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[<Schema>].[<TableName>]') AND type in (N'U'))
+	EXEC dbo.SetTableVersionOnOff @tname=N'<TableName>', @schema=N'<Schema>',@OnOff =N'OFF';
+GO
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[<Schema>].[<TableName>]') AND type in (N'U'))
+DROP TABLE [<Schema>].[<TableName>]
+GO
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[<Schema>].[<TableName>]') AND type in (N'U'))
+DROP TABLE [<Schema>].[<TableName>]
+GO
+
+/*Metric Data Warehouse Defaults - Not Temporal UniqueId*/
+
+CREATE TABLE [<Schema>].[<TableName>]
+(
+    [<TableName>Key/Id] [int] IDENTITY(6,1) NOT NULL,
+    <Fields>,
+	  [Rowversion] [timestamp] NOT NULL,
+	  [DeleteDate] [datetime2](7) NULL,
+	  [CreatedDatetime] [datetime2](7) NOT NULL,
+	  [ModifiedDatetime] [datetime2](7) NOT NULL,
+CONSTRAINT [PK_LRDFea] UNIQUE NONCLUSTERED 
+(
+	   [<TableName>Key/Id]
+) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [FGClaimsBIMetricsData]
+) ON [FGClaimsBIMetricsData]
+GO
+
+ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_CreatedDatetime]  DEFAULT (sysdatetime()) FOR [CreatedDatetime]
+GO
+
+ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_ModifiedDatetime]  DEFAULT (sysdatetime()) FOR [ModifiedDatetime]
+GO
+
+/*Metric Data Warehouse Defaults - Temporal, UniqueId*/
+
+CREATE TABLE [<Schema>].[<TableName>]
+(
+    [<TableName>Key/Id] [int] IDENTITY(6,1) NOT NULL,
+    <Fields>,
+    [RowVersion] [timestamp] NOT NULL,
+    [DeleteDate] [datetime2](7) NULL,
+    [BeginDate] [datetime2](7) GENERATED ALWAYS AS ROW START NOT NULL,
+    [EndDate] [datetime2](7) GENERATED ALWAYS AS ROW END NOT NULL,
+CONSTRAINT [PK_<TableName>] PRIMARY KEY CLUSTERED 
+(
+    [<TableName>Key/Id] ASC
+) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [FGClaimsBIMetricsData],
+    PERIOD FOR SYSTEM_TIME ([BeginDate], [EndDate])
+) ON [FGClaimsBIMetricsData]
+WITH
+(
+    SYSTEM_VERSIONING = ON ( HISTORY_TABLE = [<Schema>].[<TableName>History] )
+)
+GO
+
+ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_BeginDate]  DEFAULT (getutcdate()) FOR [BeginDate]
+GO
+
+ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_EndDate]  DEFAULT (CONVERT([datetime2](7),'9999-12-31 23:59:59.99999999')) FOR [EndDate]
+GO
+
+
 /*Landing Table*/
 
+CREATE TABLE [<Schema>].[<TableName>]
+(
+	  <Fields>
+
+) ON [FGClaimsBIStageData]
+GO
+
 /*Normal Source Table (with Id value)*/
+
+CREATE TABLE [<schema>].[<tablename>]
+(
+	<fields>
+CONSTRAINT [PK_<tablename>] UNIQUE NONCLUSTERED
+(
+	[BMTId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [FGClaimsBIStageData],
+) ON [FGClaimsBIStageData]
+GO
 
 /*Normal Source Table (without Id value)*/
 
