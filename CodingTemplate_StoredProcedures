@@ -7,3 +7,82 @@
 /*Merge Script - Incremental Tables*/
 
 /*Merge Script - Temporal Tables*/
+
+USE <Database Names>
+GO
+
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE OR ALTER PROCEDURE dbo.USP<TableName>
+AS
+
+/*------------------------------------------------------------------------------------------------------------
+Purpose: To add new recrods, add DeleteDate value to old records, and update changed records.
+
+Target Table: <Database>.<Schema>.<Tablename>
+Source Table:		<Database>.<Schema>.<Tablename>
+
+--------------------------------------------------------------------------------------------------------------
+Change History
+
+** Version   Date         Author                Description 
+** -------	 ----------	  ---------------------	--------------------------------------------------------------
+** 1.0       MM/DD/YYYY   <Name>                Initial Version
+
+------------------------------------------------------------------------------------------------------------*/
+
+    BEGIN
+
+	--Used to update DeleteDate and ModifiedDatetime values where applicable
+	DECLARE @dt DATETIME = GETDATE();
+
+	--This MERGE INTO is used to identify additions and deletions only, MATCHED replace all not just changed
+	--NOTE: The join can be simple, complex, and if Dim joins to code to get to metric warehouse Key value
+	MERGE INTO <Database>.<Schema>.<Tablename> AS target
+	USING <Database>.<Schema>.<Tablename> AS source ON target.<IdField> = source.<IdField>  
+	WHEN NOT MATCHED THEN
+	INSERT 
+	(
+		 <Fields>
+	)
+	VALUES
+	(
+		 source.<Fields>
+	)
+	WHEN NOT MATCHED BY SOURCE THEN 
+	UPDATE SET
+		--The metric data warehouse does not actually delete records it just adds a delete date
+		target.DeleteDate = COALESCE(target.DeleteDate,@dt) 
+	;
+
+	--This UPDATE is used to identify records that changed and only update those records
+	UPDATE target
+	SET 
+		 target.<Field> = source.<Field>
+		--,target.ModifiedDatetime		= @dt --NOT NEEDED IF INCREMENTAL LOAD OR TEMPORAL TABLE
+
+	FROM
+		<Database>.<Schema>.<Tablename> AS target
+		INNER JOIN <Database>.<Schema>.<Tablename> AS source ON source.<IdField> = target.<IdField>
+
+	--This compares each field in a row and returns any rows where at least one value changed
+	WHERE EXISTS
+	(
+		SELECT
+			 target.<Fields (Less Key Fields)>		
+
+		EXCEPT
+
+		SELECT
+			 source.<Fields (Less Key Fields)>
+	);
+
+	END;
+GO
+
+
+
