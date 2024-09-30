@@ -18,8 +18,8 @@ AS
 /*------------------------------------------------------------------------------------------------------------
 Purpose: To add new recrods, add DeleteDate value to old records, and update changed records.
 
-Target Table: <Database>.<Schema>.<Tablename>
-Source Table: <Database>.<Schema>.<Tablename>
+Target Table: ClaimsBIMetrics.source.<Tablename>
+Source Table: ClaimsBIStage.dbo.<Tablename>
 
 --------------------------------------------------------------------------------------------------------------
 Change History
@@ -37,8 +37,8 @@ Change History
 
 	--This MERGE INTO is used to identify additions and deletions only, MATCHED replace all not just changed
 	--NOTE: The join can be simple, complex, and if Dim joins to code to get to metric warehouse Key value
-	MERGE INTO <Database>.<Schema>.<Tablename> AS target
-	USING <Database>.<Schema>.<Tablename> AS source ON target.<IdField> = source.<IdField>  
+	MERGE INTO ClaimsBIMetrics.source.<Tablename> AS target
+	USING ClaimsBIStage.dbo.<Tablename> AS source ON source.<IdField> = target.<IdField>  
 	WHEN NOT MATCHED THEN
 	INSERT 
 	(
@@ -61,8 +61,8 @@ Change History
 		--,target.ModifiedDatetime		= @dt --NOT NEEDED IF INCREMENTAL LOAD OR TEMPORAL TABLE
 
 	FROM
-		<Database>.<Schema>.<Tablename> AS target
-		INNER JOIN <Database>.<Schema>.<Tablename> AS source ON source.<IdField> = target.<IdField>
+		ClaimsBIMetrics.source.<Tablename> AS target
+		INNER JOIN ClaimsBIStage.dbo.<Tablename> AS source ON source.<IdField> = target.<IdField>
 
 	--This compares each field in a row and returns any rows where at least one value changed
 	WHERE EXISTS
