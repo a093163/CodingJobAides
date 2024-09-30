@@ -1,3 +1,10 @@
+/******************************************/
+/* Naming Conventions */
+/******************************************/
+
+-- DateTime (capitalize the T in Time).
+-- Land and Source tables identity value ends in Id, Dimension and Fact identity and foreign keys end in Key.
+
 /*******/
 /* All */
 /*******/
