@@ -1,6 +1,6 @@
 /*All*/
 
-USE [ClaimsBiStage]
+USE [ClaimsBiStage] / [ClaimsBIMetrics]
 GO
 
 SET ANSI_NULLS ON
