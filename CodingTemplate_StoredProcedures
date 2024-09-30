@@ -19,7 +19,7 @@ AS
 Purpose: To add new recrods, add DeleteDate value to old records, and update changed records.
 
 Target Table: <Database>.<Schema>.<Tablename>
-Source Table:		<Database>.<Schema>.<Tablename>
+Source Table: <Database>.<Schema>.<Tablename>
 
 --------------------------------------------------------------------------------------------------------------
 Change History
