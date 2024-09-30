@@ -29,23 +29,23 @@ IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[<Schema>].[<
 DROP TABLE [<Schema>].[<TableName>]
 GO
 
-/*Landing Table*/
+/*Landing Table - Multiple Field Id*/
 
 CREATE TABLE [<Schema>].[<TableName>]
 (
-	  <Fields>
+    <Fields>
 
 ) ON [FGClaimsBIStageData]
 GO
 
-/*Normal Source Table (with Id value)*/
+/*Landing Table - UniqueId*/
 
 CREATE TABLE [<schema>].[<tablename>]
 (
-	<fields>
+    <fields>
 CONSTRAINT [PK_<tablename>] UNIQUE NONCLUSTERED
 (
-	[BMTId] ASC
+    [<TableName>Key/Id] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [FGClaimsBIStageData],
 ) ON [FGClaimsBIStageData]
 GO
