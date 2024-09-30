@@ -2,13 +2,8 @@
 
 /*Initial Incremental Load Script*/
 
-/*Merge Script - Normal*/
-
-/*Merge Script - Incremental Tables*/
-
-/*Merge Script - Temporal Tables*/
-
-USE <Database Names>
+/*Merge Script - Land to Source*/
+USE [ClaimsBIStage] / [ClaimsBIMetrics]
 GO
 
 SET ANSI_NULLS ON
