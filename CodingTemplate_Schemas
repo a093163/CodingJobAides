@@ -166,7 +166,7 @@ BEGIN
 		[EndDate] [datetime2](7) NOT NULL
 	)
 
-	CREATE CLUSTERED INDEX [IX_ThisIsATestHistory] ON [dbo].[ThisIsATestHistory]
+	CREATE CLUSTERED INDEX [IX_Source_ThisIsATestHistory_EndDate_BeginDate] ON [dbo].[ThisIsATestHistory]
 	(
 		[EndDate], 
 		[BeginDate]
