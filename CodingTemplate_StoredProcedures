@@ -1,8 +1,11 @@
-/*Merge Script - Land to Source*/
-USE [ClaimsBIStage] / [ClaimsBIMetrics]
+/************************************************************************************************************************/
+/* Merge Script - Land to source */
+/************************************************************************************************************************/
+
+USE [ClaimsBIMetrics]
 GO
 
-CREATE OR ALTER PROCEDURE dbo.USP<TableName>
+CREATE OR ALTER PROCEDURE dbo.USPLandThisIsATest
 AS
 
 /***********************************************************************************************************************************************
@@ -12,8 +15,8 @@ Modify date: MM/DD/YYYY
 Description: 
 Purpose: To move data from landing table to source table by adding new recrods, deleting old records, and updating changed records.
 Tables: 
-    ClaimsBIMetrics.source.<Tablename>
-    ClaimsBIStage.dbo.<Tablename>
+    ClaimsBIMetrics.Source.ThisIsATest
+    ClaimsBIStage.dbo.ThisIsATest
 
 Reference Tables:  
 
@@ -36,18 +39,33 @@ UDFs:
 	This MERGE INTO is used to identify additions and deletions only (MATCHED replaces every record not just what changes)
 	NOTE: The join can be simple or complex
 	*/
-	MERGE INTO ClaimsBIMetrics.source.<Tablename> AS target
-	USING ClaimsBIStage.dbo.<Tablename> AS source ON source.<IdField(s)> = target.<IdField(s)>  
+	MERGE INTO ClaimsBIMetrics.Source.ThisIsATest AS target
+	USING ClaimsBIStage.dbo.LandThisIsATest AS source ON source.ClaimCentury	= target.ClaimCentury  
+												     AND source.ClaimYear		= target.ClaimYear
+												     AND source.ClaimNbr		= target.ClaimNbr
+												     AND source.FeatureSeqNbr	= target.FeatureSeqNbr
 	WHEN NOT MATCHED THEN
 	INSERT 
 	(
-		 <Fields>
+		  ClaimCentury
+		 ,ClaimYear
+		 ,ClaimNbr
+		 ,FeatureSeqNbr
+		 ,Field1
+		 ,Field2
+		 ,Field3
 	)
 	VALUES
 	(
-		 source.<Fields>
+		  source.ClaimCentury
+		 ,source.ClaimYear
+		 ,source.ClaimNbr
+		 ,source.FeatureSeqNbr
+		 ,source.Field1
+		 ,source.Field2
+		 ,source.Field3
 	)
-	WHEN NOT MATCHED BY SOURCE THEN 
+	WHEN NOT MATCHED BY source THEN 
 	UPDATE SET
 		/*The metric data warehouse does not actually delete records it just adds a delete date*/
 		target.DeleteDate = COALESCE(target.DeleteDate,@dt) 
@@ -56,111 +74,143 @@ UDFs:
 	/*This UPDATE is used to identify records that changed and only update those records*/
 	UPDATE target
 	SET 
-		 target.<Field> = source.<Field>
-		--,target.ModifiedDatetime		= @dt --NOT NEEDED IF INCREMENTAL LOAD OR TEMPORAL TABLE
+		 target.Field1				= source.Field1
+		,target.Field2				= source.Field2
+		,target.Field3				= source.Field3
+		,target.ModifiedDateTime	= @dt /*NOT NEEDED IF INCREMENTAL LOAD OR TEMPORAL TABLE*/
 
 	FROM
-		ClaimsBIMetrics.source.<Tablename> AS target
-		INNER JOIN ClaimsBIStage.dbo.<Tablename> AS source ON source.<IdField> = target.<IdField>
+		ClaimsBIMetrics.Source.ThisIsATest AS target
+		INNER JOIN ClaimsBIStage.dbo.LandThisIsATest AS source ON source.ClaimCentury	= target.ClaimCentury  
+															  AND source.ClaimYear		= target.ClaimYear
+															  AND source.ClaimNbr		= target.ClaimNbr
+															  AND source.FeatureSeqNbr	= target.FeatureSeqNbr
 
 	/*This compares each field in a row and returns any rows where at least one value changed (join fields are removed)*/
 	WHERE EXISTS
 	(
 		SELECT
-			 target.<Fields (Less Key Fields)>		
+			  target.Field1
+			 ,target.Field2
+			 ,target.Field3
 
 		EXCEPT
 
 		SELECT
-			 source.<Fields (Less Key Fields)>
+			  source.Field1
+			 ,source.Field2
+			 ,source.Field3
 	);
 
 	END;
 GO
 
-/*Merge Script - Source to Dimension*/
+/************************************************************************************************************************/
+/* Merge Script - source to Dimension */
+/************************************************************************************************************************/
 
-USE ClaimsBiMetrics
+USE ClaimsBIMetrics
 GO
 
-SET ANSI_NULLS ON
-GO
-
-SET QUOTED_IDENTIFIER ON
-GO
-
-CREATE OR ALTER PROCEDURE dbo.USP<TableName>
+CREATE OR ALTER PROCEDURE dbo.USPThisIsATest
 AS
 
-/*------------------------------------------------------------------------------------------------------------
-Purpose: To add new recrods, add DeleteDate value to old records, and update changed records. In addition,
-		 to align with other dimension naming standards the field names were changed.
+/***********************************************************************************************************************************************
+Author: Andrew Logan
+Create date: MM/DD/YYYY
+Modify date: MM/DD/YYYY
+Description: 
+Purpose: To move data from landing table to source table by adding new recrods, deleting old records, and updating changed records.
+Tables: 
+    ClaimsBIMetrics.dbo.ThisIsATest
+    ClaimsBIMetrics.Source.ThisIsATest
 
-Tables:
-		ClaimsBiMetrics.dbo.<DimTableName>
-		ClaimsBiMetrics.source.<TableName>
+Reference Tables:  
 
---------------------------------------------------------------------------------------------------------------
-Change History
-
-** Version   Date		  Author				Description 
-** -------	 ----------	  ---------------------	--------------------------------------------------------------
-** 1.0		 09/26/2024       <Name>		Initial Version
-
-------------------------------------------------------------------------------------------------------------*/
+UDFs:
+ 
+***********************************************************************************************************************************************
+**	Change History
+***********************************************************************************************************************************************
+** Version    Date          Author                       Description
+** -------    ----------    -------------------------    --------------------------------------------------------------------------------------
+** 1.0	      MM/DD/YYYY    Andrew Logan                 Created USP
+***********************************************************************************************************************************************/
 
     BEGIN
 
-	--Used to update DeleteDate and ModifiedDatetime values where applicable
+	/*Used to update DeleteDate and ModifiedDatetime values where applicable*/
 	DECLARE @dt DATETIME = GETDATE();
 
-	--This MERGE INTO is used to identify additions and deletions only, MATCHED replace all not just changed
-	--NOTE: The join can be simple, complex, and if Dim joins to code to get to metric warehouse Key value
-	MERGE INTO ClaimsBiMetrics.dbo.<DimTableName> AS target
-	USING ClaimsBiMetrics.source.<TableName> AS source ON source.<IdField> = target.<IdField>  
+	/*
+	This MERGE INTO is used to identify additions and deletions only (MATCHED replaces every record not just what changes)
+	NOTE: The join can be simple or complex
+	*/
+	MERGE INTO ClaimsBIMetrics.dbo.DimThisIsATest AS target
+	USING ClaimsBIMetrics.source.ThisIsATest AS source ON source.ClaimCentury	= target.ClaimCentury  
+												      AND source.ClaimYear		= target.ClaimYear
+												      AND source.ClaimNbr		= target.ClaimNbr
+												      AND source.FeatureSeqNbr	= target.FeatureSeqNbr
 	WHEN NOT MATCHED THEN
 	INSERT 
 	(
-		 <Fields>
+		  ClaimCentury
+		 ,ClaimYear
+		 ,ClaimNbr
+		 ,FeatureSeqNbr
+		 ,Field1
+		 ,Field2
+		 ,Field3
 	)
 	VALUES
 	(
-		 source.<Fields>
+		  source.ClaimCentury
+		 ,source.ClaimYear
+		 ,source.ClaimNbr
+		 ,source.FeatureSeqNbr
+		 ,source.Field1
+		 ,source.Field2
+		 ,source.Field3
 	)
-	WHEN NOT MATCHED BY SOURCE THEN 
+	WHEN NOT MATCHED BY source THEN 
 	UPDATE SET
-		--The metric data warehouse does not actually delete records it just adds a delete date
+		/*The metric data warehouse does not actually delete records it just adds a delete date*/
 		target.DeleteDate = COALESCE(target.DeleteDate,@dt) 
 	;
 
-	--This UPDATE is used to identify records that changed and only update those records
+	/*This UPDATE is used to identify records that changed and only update those records*/
 	UPDATE target
 	SET 
-		 target.<Fields>					= source.<Fields>
-
-		--,targePilot3	t.ModifiedDatetime		= @dt --NOT NEEDED IF INCREMENTAL LOAD OR TEMPORAL TABLE
+		 target.Field1				= source.Field1
+		,target.Field2				= source.Field2
+		,target.Field3				= source.Field3
+		--,target.ModifiedDatetime	= @dt /*NOT NEEDED IF INCREMENTAL LOAD OR TEMPORAL TABLE*/
 
 	FROM
-		ClaimsBiMetrics.dbo.<DimTableName> AS target
-		INNER JOIN ClaimsBiMetrics.source.<DimTableName> AS source ON target.<IdField> = source.<IdField> AND source.DeleteDate IS NULL
+		ClaimsBIMetrics.dbo.DimThisIsATest AS target
+		INNER JOIN ClaimsBIMetrics.source.ThisIsATest AS source ON source.ClaimCentury	= target.ClaimCentury  
+															   AND source.ClaimYear		= target.ClaimYear
+															   AND source.ClaimNbr		= target.ClaimNbr
+															   AND source.FeatureSeqNbr	= target.FeatureSeqNbr
 
-	--This compares each field in a row and returns any rows where at least one value changed
+	/*This compares each field in a row and returns any rows where at least one value changed (join fields are removed)*/
 	WHERE EXISTS
 	(
 		SELECT
-			 target.<Fields>
+			  target.Field1
+			 ,target.Field2
+			 ,target.Field3
 
 		EXCEPT
 
 		SELECT
-			 source.<Fields>
+			  source.Field1
+			 ,source.Field2
+			 ,source.Field3
 	);
 
 	END;
 GO
-
-
-
 
 
 
