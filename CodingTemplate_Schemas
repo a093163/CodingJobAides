@@ -88,7 +88,7 @@ BEGIN
 		CONSTRAINT [PK_Source_ThisIsATest_ThisIsATestKey] PRIMARY KEY CLUSTERED (ThisIsATestId)
 	)
 
-	CREATE UNIQUE NONCLUSTERED INDEX [AK_Source_ThisIsATest_ClaimCentury_ClaimYear] ON [source].[ThisIsATest]
+	CREATE UNIQUE NONCLUSTERED INDEX [AK_Source_ThisIsATest_ClaimCentury_ClaimYear_ClaimNbr] ON [source].[ThisIsATest]
 	(
 		[ClaimCentury],
 		[ClaimYear],
@@ -138,7 +138,7 @@ BEGIN
 		CONSTRAINT [PK_dbo_ThisIsATest_ThisIsATestKey] PRIMARY KEY CLUSTERED (ThisIsATestKey)
 	)
 
-	CREATE UNIQUE NONCLUSTERED INDEX [AK_dbo_ThisIsATest_ClaimCentury_ClaimYear] ON [dbo].[ThisIsATest]
+	CREATE UNIQUE NONCLUSTERED INDEX [AK_dbo_ThisIsATest_ClaimCentury_ClaimYear_ClaimNbr] ON [dbo].[ThisIsATest]
 	(
 		[ClaimCentury],
 		[ClaimYear],
