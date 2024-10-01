@@ -10,8 +10,8 @@ AS
 
 /***********************************************************************************************************************************************
 Author: Andrew Logan
-Create date: MM/DD/YYYY
-Modify date: MM/DD/YYYY
+Create date: 10/1/2024
+Modify date: 10/1/2024
 Description: This is the combination of a MERGE INTO script and a UPDATE where differeces script
 Purpose: To move data from landing table to source table by adding new recrods, deleting old records, and updating changed records.
 Tables: 
@@ -27,7 +27,7 @@ UDFs:
 ***********************************************************************************************************************************************
 ** Version    Date          Author                       Description
 ** -------    ----------    -------------------------    --------------------------------------------------------------------------------------
-** 1.0	      MM/DD/YYYY    Andrew Logan                 Created USP
+** 1.0	      10/1/2024     Andrew Logan                 Created USP
 ***********************************************************************************************************************************************/
 
     BEGIN
