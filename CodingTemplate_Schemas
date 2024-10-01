@@ -44,7 +44,7 @@ BEGIN
 		CONSTRAINT [PK_dbo_LandThisIsATest_LandThisIsATestId] PRIMARY KEY CLUSTERED (LandThisIsATestId)
 	)
 
-	CREATE UNIQUE NONCLUSTERED INDEX [AK_dbo_LandThisIsATest_ClaimCentury_ClaimYear] ON [dbo].[LandThisIsATest]
+	CREATE UNIQUE NONCLUSTERED INDEX [AK_dbo_LandThisIsATest_ClaimCentury_ClaimYear_ClaimNbr] ON [dbo].[LandThisIsATest]
 	(
 		[ClaimCentury],
 		[ClaimYear],
