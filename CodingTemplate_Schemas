@@ -120,6 +120,10 @@ IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ThisIs
     DROP TABLE [dbo].[ThisIsATest]
 GO
 
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ThisIsATestHistory]') AND type in (N'U'))
+    DROP TABLE [dbo].[ThisIsATestHistory]
+GO
+
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ThisIsATest]') AND type in (N'U'))
 BEGIN
 
@@ -149,7 +153,6 @@ BEGIN
 		[FeatureSeqNbr]
 	)
 
-	DROP TABLE [dbo].[ThisIsATestHistory]
 	CREATE TABLE [dbo].[ThisIsATestHistory]
 	(
 		[ThisIsATestKey] [int] NOT NULL,
