@@ -1,192 +1,155 @@
-/******************************************/
-/* Naming Conventions */
-/******************************************/
+/*All Table Definitions*/
 
--- DateTime (capitalize the T in Time).
--- Land and Source tables identity value ends in Id, Dimension and Fact identity and foreign keys end in Key.
-
-/*******/
-/* All */
-/*******/
-
-USE [ClaimsBIStage] / [ClaimsBIMetrics]
+/*Landing table template*/
+USE [ClaimsBIStage]
 GO
 
-SET ANSI_NULLS ON
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LandThisIsATest]') AND type in (N'U'))
+    DROP TABLE [dbo].[LandThisIsATest]
 GO
 
-SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LandThisIsATest]') AND type in (N'U'))
+BEGIN
+
+	CREATE TABLE [dbo].[LandThisIsATest]
+	(
+		[LandThisIsATestId] [int] IDENTITY(1,1) NOT NULL,
+		[ClaimCentury] [smallint] NOT NULL,
+		[ClaimYear] [smallint] NOT NULL,
+		[ClaimNbr] [int] NOT NULL,
+		[FeatureSeqNbr] [smallint] NOT NULL,
+		[Field1] [smallint] NULL,
+		[Field2] [smallint] NULL,
+		[Field3] [smallint] NULL,
+		CONSTRAINT [PK_dbo_LandThisIsATest_LandThisIsATestId] PRIMARY KEY CLUSTERED (LandThisIsATestId)
+	)
+
+	CREATE UNIQUE NONCLUSTERED INDEX [AK_dbo_LandThisIsATest_ClaimCentury_ClaimYear] ON [dbo].[LandThisIsATest]
+	(
+		[ClaimCentury],
+		[ClaimYear],
+		[ClaimNbr]
+	) 
+	INCLUDE
+	(
+		[FeatureSeqNbr]
+	)
+
+END
+
+
+/*Source table template*/
+USE [ClaimsBIMetrics]
 GO
 
-/**************/
-/* Drop Table */
-/**************/
-
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[<Schema>].[<TableName>]') AND type in (N'U'))
-DROP TABLE [<Schema>].[<TableName>]
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[Source].[ThisIsATest]') AND type in (N'U'))
+    DROP TABLE [Source].[ThisIsATest]
 GO
 
-/*Drop Table - Temporal*/
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[Source].[ThisIsATest]') AND type in (N'U'))
+BEGIN
 
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[<Schema>].[<TableName>]') AND type in (N'U'))
-	EXEC dbo.SetTableVersionOnOff @tname=N'<TableName>', @schema=N'<Schema>',@OnOff =N'OFF';
+	CREATE TABLE [Source].[ThisIsATest]
+	(
+		[ThisIsATestId] [int] IDENTITY(3,1) NOT NULL,
+		[ClaimCentury] [smallint] NOT NULL,
+		[ClaimYear] [smallint] NOT NULL,
+		[ClaimNbr] [int] NOT NULL,
+		[FeatureSeqNbr] [smallint] NOT NULL,
+		[Field1] [smallint] NULL,
+		[Field2] [smallint] NULL,
+		[Field3] [smallint] NULL,
+		[RowVersion] [timestamp] NOT NULL,
+		[DeleteDate] [datetime2](7) NULL,
+		[CreatedDateTime] [datetime2](7) NOT NULL,
+		[ModifiedDateTime] [datetime2](7) NOT NULL,
+		CONSTRAINT [PK_Source_ThisIsATest_ThisIsATestKey] PRIMARY KEY CLUSTERED (ThisIsATestId)
+	)
+
+	CREATE UNIQUE NONCLUSTERED INDEX [AK_Source_ThisIsATest_ClaimCentury_ClaimYear] ON [source].[ThisIsATest]
+	(
+		[ClaimCentury],
+		[ClaimYear],
+		[ClaimNbr]
+	) 
+	INCLUDE
+	(
+		[FeatureSeqNbr]
+	)
+
+	ALTER TABLE [Source].[ThisIsATest] ADD  CONSTRAINT [DF_ThisIsATest_CreatedDateTime]  DEFAULT (getutcdate()) FOR [CreatedDateTime]
+
+	ALTER TABLE [Source].[ThisIsATest] ADD  CONSTRAINT [DF_ThisIsATest_ModifiedDateTime]  DEFAULT (getutcdate()) FOR [ModifiedDateTime]
+
+END
+ 
+
+/*Source table template (temporal)*/
+USE [ClaimsBIMetrics]
 GO
 
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[<Schema>].[<TableName>]') AND type in (N'U'))
-DROP TABLE [<Schema>].[<TableName>]
+IF EXISTS (SELECT 1 FROM sys.tables AS t INNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id WHERE t.name = 'ThisIsATest' and s.name = 'dbo' AND TEMPORAL_TYPE <> 0)
+    EXEC dbo.SetTableVersionOnOff @tname=N'ThisIsATest', @schema=N'dbo',@OnOff =N'OFF';
 GO
 
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[<Schema>].[<TableName>]') AND type in (N'U'))
-DROP TABLE [<Schema>].[<TableName>]
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ThisIsATest]') AND type in (N'U'))
+    DROP TABLE [dbo].[ThisIsATest]
 GO
 
-/*************************************/
-/* Landing Table - Multiple Field Id */
-/*************************************/
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ThisIsATest]') AND type in (N'U'))
+BEGIN
 
-CREATE TABLE [<Schema>].[<TableName>]
-(
-    <Fields>
-) 
-GO
+	CREATE TABLE [dbo].[ThisIsATest]
+	(
+		[ThisIsATestKey] [int] IDENTITY(3,1) NOT NULL,
+		[ClaimCentury] [smallint] NOT NULL,
+		[ClaimYear] [smallint] NOT NULL,
+		[ClaimNbr] [int] NOT NULL,
+		[FeatureSeqNbr] [smallint] NOT NULL,
+		[RowVersion] [timestamp] NOT NULL,
+		[DeleteDate] [datetime2](7) NULL,
+		[BeginDate] [datetime2](7) GENERATED ALWAYS AS ROW START NOT NULL,
+		[EndDate] [datetime2](7) GENERATED ALWAYS AS ROW END NOT NULL,
+		PERIOD FOR SYSTEM_TIME ([BeginDate], [EndDate]),
+		CONSTRAINT [PK_dbo_ThisIsATest_ThisIsATestKey] PRIMARY KEY CLUSTERED (ThisIsATestKey)
+	)
 
-/*Landing Table - UniqueId*/
+	CREATE UNIQUE NONCLUSTERED INDEX [AK_dbo_ThisIsATest_ClaimCentury_ClaimYear] ON [dbo].[ThisIsATest]
+	(
+		[ClaimCentury],
+		[ClaimYear],
+		[ClaimNbr]
+	) 
+	INCLUDE
+	(
+		[FeatureSeqNbr]
+	)
 
-CREATE TABLE [<schema>].[<tablename>]
-(
-    <fields>,
-    CONSTRAINT [PK_<tablename>] UNIQUE NONCLUSTERED
-    (
-        [<TableName>Key/Id] ASC
-    )
-) 
-GO
+	DROP TABLE [dbo].[ThisIsATestHistory]
+	CREATE TABLE [dbo].[ThisIsATestHistory]
+	(
+		[ThisIsATestKey] [int] NOT NULL,
+		[ClaimCentury] [smallint] NOT NULL,
+		[ClaimYear] [smallint] NOT NULL,
+		[ClaimNbr] [int] NOT NULL,
+		[FeatureSeqNbr] [smallint] NOT NULL,
+		[RowVersion] [timestamp] NOT NULL,
+		[DeleteDate] [datetime2](7) NULL,
+		[BeginDate] [datetime2](7) NOT NULL,
+		[EndDate] [datetime2](7) NOT NULL
+	)
 
-/***********************************************************/
-/* Metric Data Warehouse Defaults - Not Temporal, UniqueId */
-/***********************************************************/
+	CREATE CLUSTERED INDEX [IX_ThisIsATestHistory] ON [dbo].[ThisIsATestHistory]
+	(
+		[EndDate], 
+		[BeginDate]
+	
+	) WITH (DATA_COMPRESSION = PAGE)
 
-CREATE TABLE [<Schema>].[<TableName>]
-(
-    [<TableName>Key/Id] [int] IDENTITY(3,1) NOT NULL,
-    <Fields>,
-    [Rowversion] [timestamp] NOT NULL,
-    [DeleteDate] [datetime2](7) NULL,
-    [CreatedDatetime] [datetime2](7) NOT NULL,
-    [ModifiedDatetime] [datetime2](7) NOT NULL,
-    CONSTRAINT [PK_<TableName>] PRIMARY KEY CLUSTERED 
-    (
-        [<TableName>Key/Id]
-    )
-) 
-GO
+	ALTER TABLE [dbo].[ThisIsATest] ADD  CONSTRAINT [DF_ThisIsATest_BeginDate]  DEFAULT (getutcdate()) FOR [BeginDate]
 
-ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_CreatedDatetime]  DEFAULT (sysdatetime()) FOR [CreatedDatetime]
-GO
+	ALTER TABLE [dbo].[ThisIsATest] ADD  CONSTRAINT [DF_ThisIsATest_EndDate]  DEFAULT (CONVERT([datetime2](7),'9999-12-31 23:59:59.99999999')) FOR [EndDate]
 
-ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_ModifiedDatetime]  DEFAULT (sysdatetime()) FOR [ModifiedDatetime]
-GO
+	EXEC dbo.SetTableVersionOnOff @tname=N'ThisIsATest', @schema=N'dbo', @OnOff=N'ON', @HstTbl='ThisIsATestHistory', @HstSchema='dbo', @RetainDays=1095
 
-/********************************************************************/
-/* Metric Data Warehouse Defaults - Not Temporal, Multiple Field Id */
-/********************************************************************/
-
-CREATE TABLE [<Schema>].[<TableName>]
-(
-    [<TableName>Key/Id] [int] IDENTITY(3,1) NOT NULL,
-    <Fields>,
-    [Rowversion] [timestamp] NOT NULL,
-    [DeleteDate] [datetime2](7) NULL,
-    [CreatedDatetime] [datetime2](7) NOT NULL,
-    [ModifiedDatetime] [datetime2](7) NOT NULL,
-    CONSTRAINT [PK_<TableName>] PRIMARY KEY NONCLUSTERED 
-    (
-        [<Field1>] ASC,
-        [<Field1>] ASC
-
-    )
-) 
-GO
-
-CREATE UNIQUE CLUSTERED INDEX [CI_<TableName>] ON [<Schema>].[<TableName>] (<IdentityField>)
-GO
-
-ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_CreatedDatetime]  DEFAULT (sysdatetime()) FOR [CreatedDatetime]
-GO
-
-ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_ModifiedDatetime]  DEFAULT (sysdatetime()) FOR [ModifiedDatetime]
-GO
-
-/*******************************************************/
-/* Metric Data Warehouse Defaults - Temporal, UniqueId */
-/*******************************************************/
-
-CREATE TABLE [<Schema>].[<TableName>]
-(
-    [<TableName>Key/Id] [int] IDENTITY(6,1) NOT NULL,
-    <Fields>,
-    [RowVersion] [timestamp] NOT NULL,
-    [DeleteDate] [datetime2](7) NULL,
-    [BeginDate] [datetime2](7) GENERATED ALWAYS AS ROW START NOT NULL,
-    [EndDate] [datetime2](7) GENERATED ALWAYS AS ROW END NOT NULL,
-    CONSTRAINT [PK_<TableName>] PRIMARY KEY CLUSTERED 
-    (
-        [<TableName>Key/Id] ASC
-    )
-    PERIOD FOR SYSTEM_TIME ([BeginDate], [EndDate])
-) 
-WITH
-(
-    SYSTEM_VERSIONING = ON ( HISTORY_TABLE = [<Schema>].[<TableName>History] )
-)
-GO
-
-ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_BeginDate]  DEFAULT (getutcdate()) FOR [BeginDate]
-GO
-
-ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_EndDate]  DEFAULT (CONVERT([datetime2](7),'9999-12-31 23:59:59.99999999')) FOR [EndDate]
-GO
-
-/****************************************************************/
-/* Metric Data Warehouse Defaults - Temporal, Multiple Field Id */
-/****************************************************************/
-
-CREATE TABLE [<Schema>].[<TableName>]
-(
-    [<TableName>Key/Id] [int] IDENTITY(6,1) NOT NULL,
-    <Fields>,
-    [RowVersion] [timestamp] NOT NULL,
-    [DeleteDate] [datetime2](7) NULL,
-    [BeginDate] [datetime2](7) GENERATED ALWAYS AS ROW START NOT NULL,
-    [EndDate] [datetime2](7) GENERATED ALWAYS AS ROW END NOT NULL,
-    CONSTRAINT [PK_<TableName>] PRIMARY KEY NONCLUSTERED 
-    (
-        [<Field1>] ASC,
-        [<Field1>] ASC
-
-    ),
-    PERIOD FOR SYSTEM_TIME ([BeginDate], [EndDate])
-) 
-WITH
-(
-    SYSTEM_VERSIONING = ON ( HISTORY_TABLE = [<Schema>].[<TableName>History] )
-)
-GO
-
-CREATE UNIQUE CLUSTERED INDEX [CI_<TableName>] ON [<Schema>].[<TableName>] (<IdentityField>)
-GO
-
-ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_BeginDate]  DEFAULT (getutcdate()) FOR [BeginDate]
-GO
-
-ALTER TABLE [<Schema>].[<TableName>] ADD  CONSTRAINT [DF_<TableName>_EndDate]  DEFAULT (CONVERT([datetime2](7),'9999-12-31 23:59:59.99999999')) FOR [EndDate]
-GO
-
-/*******************/
-/* END OF TEMPLATE */
-/*******************/
-
-
-
-
-
+END
