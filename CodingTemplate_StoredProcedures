@@ -12,7 +12,7 @@ AS
 Author: Andrew Logan
 Create date: MM/DD/YYYY
 Modify date: MM/DD/YYYY
-Description: 
+Description: This is the combination of a MERGE INTO script and a UPDATE where differeces script
 Purpose: To move data from landing table to source table by adding new recrods, deleting old records, and updating changed records.
 Tables: 
     ClaimsBIMetrics.Source.ThisIsATest
