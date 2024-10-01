@@ -1,6 +1,26 @@
-/*All Table Definitions*/
+/************************************************************************************************************************/
+/* All Table Definitions */
+/************************************************************************************************************************/
 
-/*Landing table template*/
+Metric Data Warehouse Standards
+•	No underscores in USP or table names.
+•	Capital BI when referring to either database.
+•	When creating IDENTITY columns in Land or Source tables use Id for primary key and in Dimension and Fact tables use Key for primary key.
+•	Start with example SP header found in ‘Claims BI Stored Procs’ chat shred files.  The first section is specifically designed to make the procedure easier to review and signoff on.
+•	Don’t use double dash in code (makes it hard to review and sign off)
+•	Remove all defaults (e.g. set statements, system generated comments, file groups, etc.)
+•	Use standard naming conventions and abbreviations (all case sensitive)... <ConstraintAbbreviation>_<schema>_<TableName>_<Field(s) >
+o	Primary Key – PK
+o	Unique Key – AK
+o	Foreign Key – FK 
+o	Check Constraint – CK
+o	Default Constraint – DF 
+NOTE: Comment out USE <Database> statement when elevating code through pipeline.
+
+/************************************************************************************************************************/
+/* Landing table template */
+/************************************************************************************************************************/
+
 USE [ClaimsBIStage]
 GO
 
@@ -37,8 +57,10 @@ BEGIN
 
 END
 
+/************************************************************************************************************************/
+/* Source table template */
+/************************************************************************************************************************/
 
-/*Source table template*/
 USE [ClaimsBIMetrics]
 GO
 
@@ -83,8 +105,10 @@ BEGIN
 
 END
  
+/************************************************************************************************************************/
+/* Source table template (temporal) */
+/************************************************************************************************************************/
 
-/*Source table template (temporal)*/
 USE [ClaimsBIMetrics]
 GO
 
@@ -151,5 +175,13 @@ BEGIN
 	ALTER TABLE [dbo].[ThisIsATest] ADD  CONSTRAINT [DF_ThisIsATest_EndDate]  DEFAULT (CONVERT([datetime2](7),'9999-12-31 23:59:59.99999999')) FOR [EndDate]
 
 	EXEC dbo.SetTableVersionOnOff @tname=N'ThisIsATest', @schema=N'dbo', @OnOff=N'ON', @HstTbl='ThisIsATestHistory', @HstSchema='dbo', @RetainDays=1095
+
+/************************************************************************************************************************/
+/************************************************************************************************************************/
+/************************************************************************************************************************/
+/* END OF TEMPLATE */
+/************************************************************************************************************************/
+/************************************************************************************************************************/
+/************************************************************************************************************************/
 
 END
