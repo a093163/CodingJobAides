@@ -2,39 +2,42 @@
 USE [ClaimsBIStage] / [ClaimsBIMetrics]
 GO
 
-SET ANSI_NULLS ON
-GO
-
-SET QUOTED_IDENTIFIER ON
-GO
-
 CREATE OR ALTER PROCEDURE dbo.USP<TableName>
 AS
 
-/*------------------------------------------------------------------------------------------------------------
-Purpose: To add new recrods, add DeleteDate value to old records, and update changed records.
+/***********************************************************************************************************************************************
+Author: Andrew Logan
+Create date: MM/DD/YYYY
+Modify date: MM/DD/YYYY
+Description: 
+Purpose: To move data from landing table to source table by adding new recrods, deleting old records, and updating changed records.
+Tables: 
+    ClaimsBIMetrics.source.<Tablename>
+    ClaimsBIStage.dbo.<Tablename>
 
-Target Table: ClaimsBIMetrics.source.<Tablename>
-Source Table: ClaimsBIStage.dbo.<Tablename>
+Reference Tables:  
 
---------------------------------------------------------------------------------------------------------------
-Change History
-
-** Version   Date         Author                Description 
-** -------	 ----------	  ---------------------	--------------------------------------------------------------
-** 1.0       MM/DD/YYYY   <Name>                Initial Version
-
-------------------------------------------------------------------------------------------------------------*/
+UDFs:
+ 
+***********************************************************************************************************************************************
+**	Change History
+***********************************************************************************************************************************************
+** Version    Date          Author                       Description
+** -------    ----------    -------------------------    --------------------------------------------------------------------------------------
+** 1.0	      MM/DD/YYYY    Andrew Logan                 Created USP
+***********************************************************************************************************************************************/
 
     BEGIN
 
-	--Used to update DeleteDate and ModifiedDatetime values where applicable
+	/*Used to update DeleteDate and ModifiedDatetime values where applicable*/
 	DECLARE @dt DATETIME = GETDATE();
 
-	--This MERGE INTO is used to identify additions and deletions only, MATCHED replace all not just changed
-	--NOTE: The join can be simple, complex, and if Dim joins to code to get to metric warehouse Key value
+	/*
+	This MERGE INTO is used to identify additions and deletions only (MATCHED replaces every record not just what changes)
+	NOTE: The join can be simple or complex
+	*/
 	MERGE INTO ClaimsBIMetrics.source.<Tablename> AS target
-	USING ClaimsBIStage.dbo.<Tablename> AS source ON source.<IdField> = target.<IdField>  
+	USING ClaimsBIStage.dbo.<Tablename> AS source ON source.<IdField(s)> = target.<IdField(s)>  
 	WHEN NOT MATCHED THEN
 	INSERT 
 	(
@@ -46,11 +49,11 @@ Change History
 	)
 	WHEN NOT MATCHED BY SOURCE THEN 
 	UPDATE SET
-		--The metric data warehouse does not actually delete records it just adds a delete date
+		/*The metric data warehouse does not actually delete records it just adds a delete date*/
 		target.DeleteDate = COALESCE(target.DeleteDate,@dt) 
 	;
 
-	--This UPDATE is used to identify records that changed and only update those records
+	/*This UPDATE is used to identify records that changed and only update those records*/
 	UPDATE target
 	SET 
 		 target.<Field> = source.<Field>
@@ -60,7 +63,7 @@ Change History
 		ClaimsBIMetrics.source.<Tablename> AS target
 		INNER JOIN ClaimsBIStage.dbo.<Tablename> AS source ON source.<IdField> = target.<IdField>
 
-	--This compares each field in a row and returns any rows where at least one value changed
+	/*This compares each field in a row and returns any rows where at least one value changed (join fields are removed)*/
 	WHERE EXISTS
 	(
 		SELECT
