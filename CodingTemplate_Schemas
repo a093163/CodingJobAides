@@ -99,9 +99,9 @@ BEGIN
 		[FeatureSeqNbr]
 	)
 
-	ALTER TABLE [Source].[ThisIsATest] ADD  CONSTRAINT [DF_ThisIsATest_CreatedDateTime]  DEFAULT (getutcdate()) FOR [CreatedDateTime]
+	ALTER TABLE [Source].[ThisIsATest] ADD  CONSTRAINT [DF_Source_ThisIsATest_CreatedDateTime]  DEFAULT (getutcdate()) FOR [CreatedDateTime]
 
-	ALTER TABLE [Source].[ThisIsATest] ADD  CONSTRAINT [DF_ThisIsATest_ModifiedDateTime]  DEFAULT (getutcdate()) FOR [ModifiedDateTime]
+	ALTER TABLE [Source].[ThisIsATest] ADD  CONSTRAINT [DF_Source_ThisIsATest_ModifiedDateTime]  DEFAULT (getutcdate()) FOR [ModifiedDateTime]
 
 END
  
@@ -166,16 +166,16 @@ BEGIN
 		[EndDate] [datetime2](7) NOT NULL
 	)
 
-	CREATE CLUSTERED INDEX [IX_Source_ThisIsATestHistory_EndDate_BeginDate] ON [dbo].[ThisIsATestHistory]
+	CREATE CLUSTERED INDEX [IX_dbo_ThisIsATestHistory_EndDate_BeginDate] ON [dbo].[ThisIsATestHistory]
 	(
 		[EndDate], 
 		[BeginDate]
 	
 	) WITH (DATA_COMPRESSION = PAGE)
 
-	ALTER TABLE [dbo].[ThisIsATest] ADD  CONSTRAINT [DF_ThisIsATest_BeginDate]  DEFAULT (getutcdate()) FOR [BeginDate]
+	ALTER TABLE [dbo].[ThisIsATest] ADD  CONSTRAINT [DF_dbo_ThisIsATest_BeginDate]  DEFAULT (getutcdate()) FOR [BeginDate]
 
-	ALTER TABLE [dbo].[ThisIsATest] ADD  CONSTRAINT [DF_ThisIsATest_EndDate]  DEFAULT (CONVERT([datetime2](7),'9999-12-31 23:59:59.99999999')) FOR [EndDate]
+	ALTER TABLE [dbo].[ThisIsATest] ADD  CONSTRAINT [DF_dbo_ThisIsATest_EndDate]  DEFAULT (CONVERT([datetime2](7),'9999-12-31 23:59:59.99999999')) FOR [EndDate]
 
 	EXEC dbo.SetTableVersionOnOff @tname=N'ThisIsATest', @schema=N'dbo', @OnOff=N'ON', @HstTbl='ThisIsATestHistory', @HstSchema='dbo', @RetainDays=1095
 
