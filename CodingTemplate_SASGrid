@@ -200,6 +200,60 @@ disconnect from odbc;
 quit;
 
 /****************************************************************************************/
+/* @@@ SNOWFLAKE CONNECTIONS */
+/****************************************************************************************/
+
+*SNOWFLAKE PASSTHROUGH CONNECTION;
+
+%sf_ref_acs_tok
+create table SFDimWorker as
+select * from connection to odbc
+(
+            SELECT
+            	 DATEADD(DAY,1,DT_VAL) AS DateValue
+            	,ACCT_CCYYMM AS AccountingCCYYMM
+            	,ACCT_WEEK_NBR AS AccountingWeekNbr
+            	,CASE WHEN ACCT_WEEK_NBR = ACCT_WK_IN_MO THEN 1 ELSE 0 END AS MonthEndInd
+
+            FROM
+            	COMMON_DIMENSION.TARGET.DATE AS d1
+            	INNER JOIN 
+            	(
+            		SELECT 
+            			MAX(DT_VAL) AS MAX_DT_VAL 
+
+            		FROM 
+            			COMMON_DIMENSION.TARGET.DATE 
+            			
+            		WHERE 
+            			DATEADD(WEEK,0,DT_VAL) <= GETDATE() AND DAY_OF_WEEK_NBR = 6
+            	) AS d2 ON d2.MAX_DT_VAL = d1.DT_VAL
+
+);
+disconnect from odbc;
+quit;
+
+
+*SNOWFLAKE VERSION OF RSUBMIT CONNECTION (ONLY USE WHEN YOU NEED TO UPLOAD DATA);
+%sf_ref_acs_tok(sf_create_tmp=sashelp.cars);
+EXECUTE(Create or Replace Table Database.Schema.Tablename AS (SELECT * FROM &sf_read_tmp1 limit 1); ) by odbc;
+disconnect from odbc;
+quit;
+****insert INTO;
+%sf_ref_acs_tok(sf_create_tmp=???????)
+Execute(INSERT INTO Database.Schema.Tablename(SELECT * from &sf_read_tmp1);) by odbc;
+disconnect from odbc;
+quit;
+ 
+***drop table;
+/*
+%sf_ref_acs_tok
+Execute (DROP TABLE Database.Schema.Tablename; ) by odbc;
+disconnect from odbc;
+quit;
+*/
+
+/****************************************************************************************/
 /* @@@ PDW CONNECTIONS */
 /****************************************************************************************/
 
